@@ -1,24 +1,24 @@
-import logo from './logo.svg';
+import firebase from "firebase";
+import { View } from "react-native";
+
 import './App.css';
+import Login from './Login'
+/*                           Firebase configurations                          */
+/* -------------------------------------------------------------------------- */
+
+import { FIREBASE_CONFIG } from "./constants";
+
+/* --------------------------- Initialize Firebase -------------------------- */
+const app = firebase.initializeApp(FIREBASE_CONFIG);
+export const db = app.database();
+export const fbDatabase = firebase.database();
+
+export const firebaseAuth = firebase.auth();
+export const googleAuthProvider = new firebase.auth.GoogleAuthProvider();
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Login />
   );
 }
 

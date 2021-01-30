@@ -2,6 +2,9 @@ import React, { useEffect, useState, useRef, Component } from "react";
 import firebase from "firebase";
 import { View, Image, Text, Dimensions } from "react-native";
 import HomePage from "./homepage";
+import { db, database, messaging } from './App'
+
+import { TextField, IconButton, Button } from "@material-ui/core";
 
 const { width, height } = Dimensions.get("window");
 
@@ -14,37 +17,48 @@ export default function Login(props) {
     const [emailId, setEmail] = useState("");
     const [home, setHome] = useState(false)
 
-    const googleLogin = async () => {
-        if (!firebase.auth().currentUser) {
-            var provider = new firebase.auth.GoogleAuthProvider()
-            firebase
-                .auth()
-                .signInWithPopup(provider)
-                .then(function (result) {
-                    const token = result.credential.accessToken;
-                    const user = result.user;
-                    console.log(user);
+    const [profileId, setProfileId] = useState("");
 
-                    const name = user["displayName"]
-                    const email = user["email"]
-                    const uid = user["uid"]
-                    setHome(true)
-                    setEmail(email)
+    const googleLogin = async () => {
+        firebase.database().ref(`/Spaces/${profileId}`).once("value", (snap) => {
+            if (!firebase.auth().currentUser && !snap.val()) {
+                var provider = new firebase.auth.GoogleAuthProvider()
+                firebase
+                    .auth()
+                    .signInWithPopup(provider)
+                    .then(function (result) {
+                        const token = result.credential.accessToken;
+                        const user = result.user;
+                        console.log(user);
+                        const email = user["email"]
+                        db.ref(`/Spaces/${profileId}/`).update({
+                            balance: 0,
+                            name: user["displayName"],
+                            email: user["email"],
+                            uid: user["uid"],
+                        })
+                        setHome(true)
+                        setEmail(email)
+                    })
+                    .catch(function (error) {
+                        const errorcode = error.code;
+                        const errorMessage = error.message;
+                        const email = error.email;
+                        const credential = error.credential;
+                        console.log(errorMessage, errorcode);
+                    });
+            } else {
+                var loggedInUser = firebase.auth().currentUser;
+                firebase.database().ref(`/Spaces/${profileId}`).once("value", (snap) => {
+                    if (snap.val()) {
+                        var id = loggedInUser.email
+                        console.log(loggedInUser);
+                        setHome(true)
+                        setEmail(id)
+                    }
                 })
-                .catch(function (error) {
-                    const errorcode = error.code;
-                    const errorMessage = error.message;
-                    const email = error.email;
-                    const credential = error.credential;
-                    console.log(errorMessage, errorcode);
-                });
-        } else {
-            var loggedInUser = firebase.auth().currentUser;
-            var id = loggedInUser.email
-            console.log(loggedInUser);
-            setHome(true)
-            setEmail(id)
-        }
+            }
+        })
     };
 
     return (
@@ -62,6 +76,15 @@ export default function Login(props) {
                     />
                     <Text style={{ fontSize: 28, fontWeight: 600, textAlign: 'center' }}>Achintya</Text>
                     <br />
+                    <br />
+                    <TextField
+                        variant="outlined"
+                        placeholder="Enter Profile Id"
+                        size="small"
+                        value={profileId}
+                        onChange={(e) => setProfileId(e.target.value)}
+                    //onClick={visitCreator}
+                    />
                     <br />
                     <button
                         onClick={googleLogin}
@@ -82,7 +105,7 @@ export default function Login(props) {
       </button>
                 </View>
                 :
-                <HomePage email={emailId} />
+                <HomePage email={emailId} name={profileId} />
             }
         </View>
 

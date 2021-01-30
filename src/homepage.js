@@ -240,6 +240,14 @@ export default function HomePage({ name, email }) {
                 db.ref(`/Spaces/${receiver}/`).update({
                     balance: firebase.database.ServerValue.increment(parseInt(transfer))
                 })
+                swal({
+                    text: `Successfully transfered`,
+                    icon: "success",
+                    button: {
+                        text: "OK",
+                        closeModal: true,
+                    },
+                })
             })
             console.log(receiver, transfer);
         }
@@ -247,6 +255,16 @@ export default function HomePage({ name, email }) {
     }, [receiver, transfer])
 
     const transferMoney = () => {
+        if (amount === 0) {
+            swal({
+                text: 'Insufficient amount in wallet',
+                icon: "error",
+                button: {
+                    text: "OK",
+                    closeModal: true,
+                },
+            })
+        }
         swal({
             text: 'Reciver\'s name',
             content: "input",
@@ -255,18 +273,44 @@ export default function HomePage({ name, email }) {
                 closeModal: true,
             },
         }).then((value) => {
-            console.log(value);
-            setReceiver(value)
-            swal({
-                text: 'Enter Amount',
-                content: "input",
-                button: {
-                    text: "Transfer",
-                    closeModal: true,
-                },
-            }).then((value) => {
-                setTransfer(value)
-                //console.log(receiver, value);
+            db.ref(`/Spaces/${value}/`).on("value", function (snap) {
+                if (snap.val() && value !== name) {
+                    console.log(value);
+                    setReceiver(value)
+                    swal({
+                        text: 'Enter Amount',
+                        content: "input",
+                        button: {
+                            text: "Transfer",
+                            closeModal: true,
+                        },
+                    })
+                        .then((value) => {
+                            if (parseInt(value) > amount) {
+                                swal({
+                                    text: 'Insufficient amount in wallet',
+                                    icon: "error",
+                                    button: {
+                                        text: "OK",
+                                        closeModal: true,
+                                    },
+                                })
+                            } else {
+                                setTransfer(value)
+                            }
+
+                            //console.log(receiver, value);
+                        })
+                } else {
+                    swal({
+                        text: 'User Not Fount!',
+                        icon: "error",
+                        button: {
+                            text: "OK",
+                            closeModal: true,
+                        },
+                    })
+                }
             })
         })
     }

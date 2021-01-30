@@ -109,7 +109,7 @@ export default function HomePage({ name, email }) {
             },
         }).then((value) => {
             const payId = "pay_" + Math.floor(Math.random() * 1000)
-            if (parseInt(value) < 1) {
+            if (parseInt(value) < 100) {
                 alert("Amount should be equal or more than 100")
             } else {
                 // database.collection("transactions").doc(payId).set({
@@ -331,12 +331,12 @@ export default function HomePage({ name, email }) {
 
                         </View>
                         :
-                        <View style={{ marginTop: (height / 7)  }}>
+                        <View style={{ marginTop: (height / 7) }}>
                             <h3 style={{ textAlign: 'center', fontFamily: 'auto', marginBottom: 20 }}>Transaction history</h3>
                             <View style={{ display: 'flex', flexFlow: width < 600 ? "column" : 'row', flexWrap: 'wrap', margin: width < 600 ? "auto" : 15, marginTop: width < 600 ? 15 : null, justifyContent: 'center' }}>
 
                                 <Card className={classes.root} style={{ width: width / 1.2, margin: 15, height: height / 1.9 }}>
-                                    <CardContent style={{marginTop: 15}}>
+                                    <CardContent style={{ marginTop: 15 }}>
                                         <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-evenly', alignItems: 'center' }}>
                                             <View>
                                                 <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 16 }}>
@@ -368,7 +368,7 @@ export default function HomePage({ name, email }) {
                                         <View style={{ margin: 15, marginTop: '2%' }}>
                                             <Text>Transaction Id: {transactionId}</Text>
                                         </View>
-                                        <TableContainer component={Paper} style={{marginTop: '5%'}}>
+                                        <TableContainer component={Paper} style={{ marginTop: '5%' }}>
                                             <Table className={classes.table} aria-label="simple table">
                                                 <TableHead>
                                                     <TableRow>

@@ -5,7 +5,6 @@ import firebase from 'firebase';
 import Button from '@material-ui/core/Button';
 import AddIcon from '@material-ui/icons/Add';
 import ShareIcon from '@material-ui/icons/Share';
-import MeetingRoomIcon from '@material-ui/icons/MeetingRoom';
 import { makeStyles } from '@material-ui/core/styles';
 import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable";
 
@@ -27,7 +26,6 @@ import useActionDispatcher from "./Hooks/useActionDispatcher";
 import { SET_KEYS_TRUE, UPDATE_USER_DATA } from "./Store/actions";
 
 import Loading from "./Loading";
-//import Creation from './text/Creation';
 
 import { db, database, messaging } from './App'
 
@@ -176,23 +174,20 @@ export default function HomePage({ name, email }) {
                                                                 active_room_id: name,
                                                             },
                                                         });
-                                                        // firebase.database().ref(`/Spaces/${name}`).update({
-                                                        //     online: true,
-                                                        // });
-                                                        messaging
-                                                            .requestPermission()
-                                                            .then(function () {
-                                                                console.log("permission granted");
+                                                        // messaging
+                                                        //     .requestPermission()
+                                                        //     .then(function () {
+                                                        //         console.log("permission granted");
 
-                                                                return messaging.getToken();
-                                                            })
-                                                            .then((token) => {
-                                                                database.collection("actions").doc(name).set({
-                                                                    subscription: "achintya",
-                                                                    fcmtoken: token,
-                                                                    time: firebase.firestore.FieldValue.serverTimestamp()
-                                                                })
-                                                            });
+                                                        //         return messaging.getToken();
+                                                        //     })
+                                                        //     .then((token) => {
+                                                        //         database.collection("Users").doc(name).update({
+                                                        //             subscription: "achintya",
+                                                        //             fcmtoken: token,
+                                                        //             time: firebase.firestore.FieldValue.serverTimestamp()
+                                                        //         })
+                                                        //     });
                                                         //history.push(`/${name}`);
                                                     });
                                                 });
@@ -362,15 +357,6 @@ export default function HomePage({ name, email }) {
                                 >
                                     Transfer Money
       </Button>
-                                {/* <Button
-                                    variant="contained"
-                                    className={classes.button}
-                                    startIcon={<MeetingRoomIcon />}
-                                    style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
-                                    onClick={() => setRoom(true)}
-                                >
-                                    Go To Room
-      </Button> */}
                             </View>
 
                         </View>

@@ -21,41 +21,53 @@ export default function Login(props) {
 
     const googleLogin = async () => {
         firebase.database().ref(`/Spaces/${profileId}`).once("value", (snap) => {
-            if (!firebase.auth().currentUser && !snap.val()) {
-                var provider = new firebase.auth.GoogleAuthProvider()
-                firebase
-                    .auth()
-                    .signInWithPopup(provider)
-                    .then(function (result) {
-                        const token = result.credential.accessToken;
-                        const user = result.user;
-                        console.log(user);
-                        const email = user["email"]
-                        db.ref(`/Spaces/${profileId}/`).update({
-                            balance: 0,
-                            name: user["displayName"],
-                            email: user["email"],
-                            uid: user["uid"],
+            if (!firebase.auth().currentUser) {
+                if (snap.val()) {
+                    alert('username already taken! Enter other username.')
+                } else {
+                    var provider = new firebase.auth.GoogleAuthProvider()
+                    firebase
+                        .auth()
+                        .signInWithPopup(provider)
+                        .then(function (result) {
+                            const token = result.credential.accessToken;
+                            const user = result.user;
+                            console.log(user);
+                            const email = user["email"]
+                            db.ref(`/Spaces/${profileId}/`).update({
+                                balance: 0,
+                                name: user["displayName"],
+                                email: user["email"],
+                                uid: user["uid"],
+                            })
+                            setHome(true)
+                            setEmail(email)
                         })
-                        setHome(true)
-                        setEmail(email)
-                    })
-                    .catch(function (error) {
-                        const errorcode = error.code;
-                        const errorMessage = error.message;
-                        const email = error.email;
-                        const credential = error.credential;
-                        console.log(errorMessage, errorcode);
-                    });
+                        .catch(function (error) {
+                            const errorcode = error.code;
+                            const errorMessage = error.message;
+                            const email = error.email;
+                            const credential = error.credential;
+                            console.log(errorMessage, errorcode);
+                        });
+                }
             } else {
                 var loggedInUser = firebase.auth().currentUser;
+                console.log(loggedInUser.uid)
                 firebase.database().ref(`/Spaces/${profileId}`).once("value", (snap) => {
                     if (snap.val()) {
-                        var id = loggedInUser.email
-                        console.log(loggedInUser);
-                        setHome(true)
-                        setEmail(id)
+                        if (snap.val().uid === loggedInUser.uid) {
+                            var id = snap.val().email
+                            console.log(loggedInUser);
+                            setHome(true)
+                            setEmail(id)
+                        } else {
+                            setHome(false)
+                            alert('username doesn\'t match to your account')
+                            setProfileId("")
+                        }
                     }
+
                 })
             }
         })

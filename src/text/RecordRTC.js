@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, Component } from "react";
 import RecordRTC from "recordrtc";
 import { storageRef } from "../App";
-import * as firebase from "firebase";
+import firebase from "firebase";
 import {
   Dimensions,
   Text,

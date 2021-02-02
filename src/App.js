@@ -1,5 +1,4 @@
 import firebase from "firebase";
-import { View } from "react-native";
 
 import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -8,6 +7,7 @@ import { composeWithDevTools } from "redux-devtools-extension";
 
 import './App.css';
 import Login from './Login'
+import Creation from './text/Creation';
 /*                           Firebase configurations                          */
 /* -------------------------------------------------------------------------- */
 
@@ -27,6 +27,7 @@ export const database = firebase.firestore()
 export const messaging = app.messaging();
 export const firebaseAuth = firebase.auth();
 export const googleAuthProvider = new firebase.auth.GoogleAuthProvider();
+messaging.usePublicVapidKey("BOMtci_z8K7FLTKJcdlg8tQcMmNGhyn-wQesDCm-p24J6Js1x7UPU2k6TBwSY684KZtd9KCRk5uZkueK3C1IO5k");
 
 
 /*                             Redux Configuration                            */
@@ -45,6 +46,7 @@ function App() {
       <Router>
         <Switch>
           <Route exact path="/" component={Login} />
+          <Route exact path="/:username" component={Creation} />
         </Switch>
       </Router>
       {/* <Login /> */}

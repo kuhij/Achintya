@@ -59,12 +59,10 @@ export default function Creation(props) {
         }}
       >
         {user_data.is_creator || user_data.joinedOther ?
-          <View>
             <Groups
               spaceId={username}
               creator={user_data.is_creator}
             />
-          </View>
           : <h2>You are not authorised to view this content.</h2>
         }
       </View>

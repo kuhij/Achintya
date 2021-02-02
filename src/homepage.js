@@ -27,7 +27,7 @@ import useActionDispatcher from "./Hooks/useActionDispatcher";
 import { SET_KEYS_TRUE, UPDATE_USER_DATA } from "./Store/actions";
 
 import Loading from "./Loading";
-//import Creation from './text/Creation';
+import Creation from './text/Creation';
 
 import { db, database, messaging } from './App'
 
@@ -315,6 +315,19 @@ export default function HomePage({ name, email }) {
         })
     }
 
+    const goToRoom = () => {
+        setRoom(true)
+        dispatchAction(UPDATE_USER_DATA, {
+            data: {
+                creator: true,
+                is_creator: true,
+                user_id: name,
+                active_room_id: name,
+            },
+        });
+        history.push(`/${name}`)
+    }
+
     const onSwiping = ({ dir }) => {
         if (dir === UP) {
             console.log(transactions.paymentId);
@@ -325,122 +338,117 @@ export default function HomePage({ name, email }) {
 
     return loading ? (
         <Loading />
+    ) : room ? (
+        <Creation />
     ) : (
-            <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true} >
+                <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true} >
 
-                <View>
-                    {showTransactions === false ?
-                        <View style={{ marginTop: height / 4 }}>
-                            <View style={{ display: 'flex', alignItems: 'center' }}>
-                                <Text style={{ fontSize: width < 500 ? 95 : 140 }}>
-                                    <span>&#8377;</span>: {amount}
-                                </Text>
+                    <View>
+                        <img src="edit-solid.svg" style={{ height: 30, position: 'absolute', marginLeft: '95%', marginTop: 15, cursor: 'pointer' }} onClick={goToRoom} />
+                        {showTransactions === false ?
+                            <View style={{ marginTop: height / 4 }}>
+                                <View style={{ display: 'flex', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: width < 500 ? 95 : 140 }}>
+                                        <span>&#8377;</span>: {amount}
+                                    </Text>
+                                    <br />
+                                    <Text style={{ fontSize: 18, fontFamily: 'auto' }}>
+                                        {email}
+                                    </Text>
+                                </View>
                                 <br />
-                                <Text style={{ fontSize: 18, fontFamily: 'auto' }}>
-                                    {email}
-                                </Text>
-                            </View>
-                            <br />
-                            <br />
-                            <View style={{ display: 'flex', flexFlow: 'column' }}>
-                                <Button
-                                    variant="contained"
-                                    className={classes.button}
-                                    startIcon={<AddIcon />}
-                                    style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
-                                    onClick={addMoney}
-                                >
-                                    Add Money
-      </Button>
                                 <br />
-                                <Button
-                                    variant="contained"
-                                    className={classes.button}
-                                    startIcon={<ShareIcon />}
-                                    style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
-                                    onClick={transferMoney}
-                                >
-                                    Transfer Money
+                                <View style={{ display: 'flex', flexFlow: 'column' }}>
+                                    <Button
+                                        variant="contained"
+                                        className={classes.button}
+                                        startIcon={<AddIcon />}
+                                        style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
+                                        onClick={addMoney}
+                                    >
+                                        Add Money
       </Button>
-                                {/* <Button
-                                    variant="contained"
-                                    className={classes.button}
-                                    startIcon={<MeetingRoomIcon />}
-                                    style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
-                                    onClick={() => setRoom(true)}
-                                >
-                                    Go To Room
-      </Button> */}
+                                    <br />
+                                    <Button
+                                        variant="contained"
+                                        className={classes.button}
+                                        startIcon={<ShareIcon />}
+                                        style={{ width: width / 5, margin: 'auto', background: 'black', color: 'white', cursor: 'pointer' }}
+                                        onClick={transferMoney}
+                                    >
+                                        Transfer Money
+      </Button>
+
+                                </View>
+
                             </View>
+                            :
+                            <View style={{ marginTop: (height / 7) }}>
+                                <h3 style={{ textAlign: 'center', fontFamily: 'auto', marginBottom: 20 }}>Transaction history</h3>
+                                <View style={{ display: 'flex', flexFlow: width < 600 ? "column" : 'row', flexWrap: 'wrap', margin: width < 600 ? "auto" : 15, marginTop: width < 600 ? 15 : null, justifyContent: 'center' }}>
 
-                        </View>
-                        :
-                        <View style={{ marginTop: (height / 7) }}>
-                            <h3 style={{ textAlign: 'center', fontFamily: 'auto', marginBottom: 20 }}>Transaction history</h3>
-                            <View style={{ display: 'flex', flexFlow: width < 600 ? "column" : 'row', flexWrap: 'wrap', margin: width < 600 ? "auto" : 15, marginTop: width < 600 ? 15 : null, justifyContent: 'center' }}>
-
-                                <Card className={classes.root} style={{ width: width / 1.2, margin: 15, height: height / 1.9 }}>
-                                    <CardContent style={{ marginTop: 15 }}>
-                                        <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-evenly', alignItems: 'center' }}>
-                                            <View>
-                                                <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 16 }}>
-                                                    {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? "Money Added" : "Money Paid"}
-                                                </Typography>
-                                                <Typography variant="h5" component="h2" style={{ fontWeight: 600, marginBottom: 5, fontSize: 20, marginTop: 5 }}>
-                                                    <span>&#8377;</span> {transactions.paidAmount.slice(0, -1)}
-                                                </Typography>
-
-
-                                                <View style={{ display: 'flex', flexFlow: 'row', marginBottom: 15, marginTop: 10 }}>
-                                                    <Typography variant="h5" component="h2" style={{ textAlign: 'center', fontSize: 11 }}>
-                                                        {transactions.time.toDate().toString().slice(3, 10)},{"  "}
+                                    <Card className={classes.root} style={{ width: width / 1.2, margin: 15, height: height / 1.9 }}>
+                                        <CardContent style={{ marginTop: 15 }}>
+                                            <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-evenly', alignItems: 'center' }}>
+                                                <View>
+                                                    <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 16 }}>
+                                                        {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? "Money Added" : "Money Paid"}
                                                     </Typography>
-                                                    <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginLeft: 2, fontSize: 11 }}>
-                                                        {transactions.time.toDate().toString().slice(15, 21)}
+                                                    <Typography variant="h5" component="h2" style={{ fontWeight: 600, marginBottom: 5, fontSize: 20, marginTop: 5 }}>
+                                                        <span>&#8377;</span> {transactions.paidAmount.slice(0, -1)}
                                                     </Typography>
+
+
+                                                    <View style={{ display: 'flex', flexFlow: 'row', marginBottom: 15, marginTop: 10 }}>
+                                                        <Typography variant="h5" component="h2" style={{ textAlign: 'center', fontSize: 11 }}>
+                                                            {transactions.time.toDate().toString().slice(3, 10)},{"  "}
+                                                        </Typography>
+                                                        <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginLeft: 2, fontSize: 11 }}>
+                                                            {transactions.time.toDate().toString().slice(15, 21)}
+                                                        </Typography>
+                                                    </View>
                                                 </View>
+                                                <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 20 }}>
+                                                    {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? <button style={{ border: 'none', borderRadius: '50%', background: '#24cc81', color: 'white', width: 20, height: 20 }}>+</button> : <button style={{ border: 'none', borderRadius: '50%', background: '#f84b6e', color: 'white', fontSize: 16, width: 20 }}>-</button>}
+                                                </Typography>
+
+
                                             </View>
-                                            <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 20 }}>
-                                                {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? <button style={{ border: 'none', borderRadius: '50%', background: '#24cc81', color: 'white', width: 20, height: 20 }}>+</button> : <button style={{ border: 'none', borderRadius: '50%', background: '#f84b6e', color: 'white', fontSize: 16, width: 20 }}>-</button>}
-                                            </Typography>
 
+                                            <View style={{ height: 0.5, width: '100%', background: 'black', marginTop: '2%' }}></View>
+                                            <br />
+                                            <View style={{ margin: 15, marginTop: '2%' }}>
+                                                <Text>Transaction Id: {transactionId}</Text>
+                                            </View>
+                                            <TableContainer component={Paper} style={{ marginTop: '2%' }}>
+                                                <Table className={classes.table} aria-label="simple table">
+                                                    <TableHead>
+                                                        <TableRow>
+                                                            <TableCell>Dr: </TableCell>
+                                                            <TableCell align="right">Cr: </TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        <TableRow >
+                                                            <TableCell component="th" scope="row" style={{ fontFamily: 'auto' }}>
+                                                                {transactions.wallet[0]}
+                                                            </TableCell>
+                                                            <TableCell align="right">{transactions.wallet[1]}</TableCell>
+                                                        </TableRow>
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
 
-                                        </View>
+                                        </CardContent>
+                                    </Card>
 
-                                        <View style={{ height: 0.5, width: '100%', background: 'black', marginTop: '2%' }}></View>
-                                        <br />
-                                        <View style={{ margin: 15, marginTop: '2%' }}>
-                                            <Text>Transaction Id: {transactionId}</Text>
-                                        </View>
-                                        <TableContainer component={Paper} style={{ marginTop: '5%' }}>
-                                            <Table className={classes.table} aria-label="simple table">
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Dr: </TableCell>
-                                                        <TableCell align="right">Cr: </TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    <TableRow >
-                                                        <TableCell component="th" scope="row" style={{ fontFamily: 'auto' }}>
-                                                            {transactions.wallet[0]}
-                                                        </TableCell>
-                                                        <TableCell align="right">{transactions.wallet[1]}</TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-
-                                    </CardContent>
-                                </Card>
+                                </View>
 
                             </View>
 
-                        </View>
-
-                    }
-                </View>
-            </Swipeable>
-        )
+                        }
+                    </View>
+                </Swipeable>
+            )
 
 } 

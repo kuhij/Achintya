@@ -1,9 +1,8 @@
 import React, { Component, useState, useEffect } from "react";
 import { Dimensions, Image, StyleSheet, Text, View, TextInput, TouchableHighlight, Alert } from "react-native";
-import * as firebase from 'firebase';
+import firebase from 'firebase';
 import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable";
 import RecordRTC from 'recordrtc';
-import CustomInput from "../../General/CustomInput";
 const { width, height } = Dimensions.get("window");
 
 

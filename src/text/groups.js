@@ -1,5 +1,5 @@
 import { db, storageRef, database, messaging } from "../App";
-import * as firebase from "firebase";
+import firebase from "firebase";
 
 import React, { useEffect, useState, useRef, Component } from "react";
 import { Dimensions, Text, TextInput, View, ScrollView } from "react-native";
@@ -18,6 +18,10 @@ import VideoRoom from '../webRTC/videoRoom'
 
 import { useSelector } from "react-redux";
 import swal from "sweetalert";
+
+import CryptoJS from 'crypto-js'
+
+import { Crypt, RSA } from 'hybrid-crypto-js';
 
 import useActionDispatcher from "../Hooks/useActionDispatcher";
 import { useHistory } from "react-router-dom";
@@ -64,6 +68,7 @@ export default function TextBroadCast(props) {
 
   const dispatchAction = useActionDispatcher();
   const user_data = useSelector((state) => state.globalUserData);
+  const [word, setWord] = useState("")
 
   const handleChange = (e) => {
     setState((s) => ({
@@ -151,7 +156,7 @@ export default function TextBroadCast(props) {
         } else {
           const current = snapshot.val().currentLetter;
 
-          // db.ref(`/Users/${props.spaceId}/count`).on("value", function (snapshot) {
+          // db.ref(`/Spaces/${props.spaceId}/count`).on("value", function (snapshot) {
           //   totalCost = totalCost + parseInt(current.length * parseInt(snapshot.val()))
 
           //   console.log('cost: ', totalCost, current.length, 'people ', snapshot.val());
@@ -206,9 +211,9 @@ export default function TextBroadCast(props) {
   const listening = () => {
     let docRef;
     if (user_data.is_creator) {
-      docRef = db.ref(`/Users/${props.spaceId}/data`);
+      docRef = db.ref(`/Spaces/${props.spaceId}/data`);
     } else {
-      docRef = db.ref(`/Users/${user_data.joinedSpace}/data`);
+      docRef = db.ref(`/Spaces/${user_data.joinedSpace}/data`);
     }
     keyPressFunction(docRef);
   };
@@ -216,9 +221,9 @@ export default function TextBroadCast(props) {
   const fetchingWriter = async () => {
     let writerStatus;
     if (user_data.is_creator) {
-      writerStatus = db.ref(`/Users/${props.spaceId}/`)
+      writerStatus = db.ref(`/Spaces/${props.spaceId}/`)
     } else {
-      writerStatus = db.ref(`/Users/${user_data.joinedSpace}/`)
+      writerStatus = db.ref(`/Spaces/${user_data.joinedSpace}/`)
     }
     writerFunction(writerStatus)
   }
@@ -236,17 +241,18 @@ export default function TextBroadCast(props) {
   }
 
   const spaceOwnerData = async () => {
-    if (props.spaceId) {    //checking for name presence.
-      const firstName = `${props.spaceId.charAt(0).toUpperCase() + props.spaceId.slice(1)}:  `
+    //checking for name presence.
+    //const firstName = `${props.spaceId.charAt(0).toUpperCase() + props.spaceId.slice(1)}:  `
 
-      if (user_data.is_creator) { // for owner.
+    if (user_data.is_creator) { // for owner.
+      if (props.spaceId) {
 
-        db.ref(`/Users/${props.spaceId}/`).onDisconnect().update({
+        db.ref(`/Spaces/${props.spaceId}/`).onDisconnect().update({
           online: false,
           //balance: firebase.database.ServerValue.increment(-cost)
         });
 
-        await db.ref(`/Users/${props.spaceId}/`).update({
+        await db.ref(`/Spaces/${props.spaceId}/`).update({
           call_request: "",
           count: firebase.database.ServerValue.increment(1),
           turn: props.spaceId,
@@ -254,41 +260,45 @@ export default function TextBroadCast(props) {
           online: true
         })
 
-        db.ref(`/Users/${props.spaceId}/data`).update({
+        db.ref(`/Spaces/${props.spaceId}/data`).update({
           currentLetter: "",
         })
 
         listening();
 
+      }
+
+    } else {
+
+      await db.ref(`/Spaces/${user_data.joinedSpace}/`).update({
+        balance: firebase.database.ServerValue.increment(-1),
+      });
+      // await db.ref(`/Spaces/${user_data.joinedSpace}/`).update({
+      //   count: firebase.database.ServerValue.increment(1),
+      // })
+
+      // db.ref(`/Spaces/${user_data.joinedSpace}/`).onDisconnect().update({
+      //   count: firebase.database.ServerValue.increment(-1),
+      // });
+
+      let snap = localStorage.getItem("docId")
+      if (snap === null) {
+        subscription()
       } else {
 
-        await db.ref(`/Users/${props.spaceId}/`).update({
-          balance: firebase.database.ServerValue.increment(-1),
-        });
-        await db.ref(`/Users/${user_data.joinedSpace}/`).update({
-          count: firebase.database.ServerValue.increment(1),
-        })
-
-        db.ref(`/Users/${user_data.joinedSpace}/`).onDisconnect().update({
-          count: firebase.database.ServerValue.increment(-1),
-        });
-
-        let snap = localStorage.getItem("docId")
-        if (snap === null) {
+        database.collection("actions").doc(snap).update({
+          subscription: "none",
+          fcmtoken: user_data.token,
+        }).then(() => {
           subscription()
-        } else {
+        })
+      }
 
-          database.collection("actions").doc(snap).update({
-            subscription: "none",
-            fcmtoken: user_data.token,
-          }).then(() => {
-            subscription()
-          })
-        }
-
-      await fetchingWriter();
 
     }
+
+    await fetchingWriter();
+
   };
 
   const fetchUpdate = () => {
@@ -311,45 +321,41 @@ export default function TextBroadCast(props) {
     if (isprivate === false) {
 
       if (user_data.is_creator) {
-        docRef = db.ref(`/Users/${props.spaceId}/data`);
+        docRef = db.ref(`/Spaces/${props.spaceId}/data`);
       } else {
-        docRef = db.ref(`/Users/${user_data.joinedSpace}/data`);
+        docRef = db.ref(`/Spaces/${user_data.joinedSpace}/data`);
       }
 
       if (current === "Enter") {
         textInputRef.current.focus();
       }
-      docRef.once("value", async function (snapshot) {
 
-        //while deleting the letters, speaker name shouldn't be deleted
-        if (state.value.substring(state.value.length - 3, state.value.length) === ":  " && current === "Backspace") {
-          return null;
-        } else if (current === "ArrowRight" || current === "ArrowLeft" || current === "ArrowUp" || current === "ArrowDown" || current === "Escape") {
-          return null;
-        } else if (current === "Tab") {
-          setSingle(current)
-          docRef.update({ currentLetter: "      ", time: date }).then(() => {
-            textInputRef.current.focus();
-          })
-        } else {
-          setSingle(current)
-          docRef.update({ currentLetter: current, time: date }).then(() => {
-            textInputRef.current.focus();
-          })
-        }
-      });
-    } else {
-      setSingle(current)
-      setState({
-        value: state.value + current
-      })
+      //while deleting the letters, speaker name shouldn't be deleted
+      if (current === "ArrowRight" || current === "ArrowLeft" || current === "ArrowUp" || current === "ArrowDown" || current === "Escape") {
+        return null;
+      } else if (current === "Tab") {
+        setWord("     ")
+        //setSingle(current)
 
+      } else if (current === " ") {
+
+        let wrd = word + " "
+        setSingle(wrd)
+
+
+        docRef.update({ currentLetter: wrd, time: date }).then(() => {
+          textInputRef.current.focus();
+        })
+        setWord("")
+      } else {
+        setWord(word + current)
+      }
     }
   };
 
   const sendRequest = () => {
     let id = Math.random().toString(36).slice(2)
-    db.ref(`/Users/${user_data.joinedSpace}/`).update({ call_request: props.spaceId, status: "waiting" }).then(() => {
+    db.ref(`/Spaces/${user_data.joinedSpace}/`).update({ call_request: props.spaceId, status: "waiting" }).then(() => {
       alert("request send! wait for acceptance...")
     })
   }
@@ -357,8 +363,8 @@ export default function TextBroadCast(props) {
   const getTurn = async () => {
 
     if (user_data.is_creator) {
-      db.ref(`/Users/${props.spaceId}/`).update({ status: "host", turn: props.spaceId });
-      db.ref(`/Users/${props.spaceId}/webRTC/message/`).update({
+      db.ref(`/Spaces/${props.spaceId}/`).update({ status: "host", turn: props.spaceId });
+      db.ref(`/Spaces/${props.spaceId}/webRTC/message/`).update({
         callRequest: 'none'
       })
       setState((s) => ({
@@ -376,7 +382,7 @@ export default function TextBroadCast(props) {
   const leaveTurn = () => {
 
     if (user_data.is_creator) {
-      db.ref(`/Users/${props.spaceId}/`).update({ status: "" });
+      db.ref(`/Spaces/${props.spaceId}/`).update({ status: "" });
       database.collection("Creations").add({
         message: JSON.stringify(firestore)
       }).then(() => {
@@ -385,8 +391,8 @@ export default function TextBroadCast(props) {
       })
     } else {
       setAcceptance(false)
-      db.ref(`/Users/${user_data.joinedSpace}/`).update({ status: "host", turn: user_data.joinedSpace });
-      db.ref(`/Users/${user_data.joinedSpace}/webRTC/message/`).update({
+      db.ref(`/Spaces/${user_data.joinedSpace}/`).update({ status: "host", turn: user_data.joinedSpace });
+      db.ref(`/Spaces/${user_data.joinedSpace}/webRTC/message/`).update({
         callRequest: 'none'
       })
       setState((s) => ({
@@ -405,36 +411,41 @@ export default function TextBroadCast(props) {
   };
 
   const acceptRequest = () => {
-    db.ref(`/Users/${props.spaceId}/`).update({ status: "guest", turn: requester, call_request: "" });
+    db.ref(`/Spaces/${props.spaceId}/`).update({ status: "guest", turn: requester, call_request: "" });
   }
 
   const rejectRequest = () => {
-    db.ref(`/Users/${props.spaceId}/`).update({ call_request: "" });
+    db.ref(`/Spaces/${props.spaceId}/`).update({ call_request: "" });
   }
 
-  // Register event lister for "ENTER" key press to take turn for write
-  useEffect(() => {
-    const listener = (event) => {
-      //Escape
-      if (event.keyCode === 27) {
-        db.ref(`/Users/${props.spaceId}/`).update({
-          eventStatus: 'end'
-        })
-      }
-    };
+  // // Register event lister for "ENTER" key press to take turn for write
+  // useEffect(() => {
+  //   console.log('called');
+  //   let wrd = word + " "
+  //   const listener = (event) => {
+  //     //Escape
+  //     if (event.keyCode === 32) {
+  //       db.ref(`/Spaces/${props.spaceId}/data`).update({
+  //         currentLetter: wrd
+  //       }).then(() => {
+  //         setSingle(wrd)
+  //         setWord("")
+  //       })
+  //     }
+  //   };
 
-    // register listener
-    document.addEventListener("keydown", listener);
+  //   // register listener
+  //   document.addEventListener("keydown", listener);
 
-    // clean up function, un register listener on component unmount
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
+  //   // clean up function, un register listener on component unmount
+  //   return () => {
+  //     document.removeEventListener("keydown", listener);
+  //   };
+  // }, []);
 
   const sendMessage = () => {
 
-    firebase.firestore().collection("Users").doc(props.spaceId).collection("creations").doc('something').collection("Text").add({
+    firebase.firestore().collection("Spaces").doc(props.spaceId).collection("creations").doc('something').collection("Text").add({
       message: JSON.stringify({ name: props.spaceId, data: { [Date.now()]: state.value } })
     }).then(() => {
       setState({
@@ -455,6 +466,10 @@ export default function TextBroadCast(props) {
       } else {
         setShowRecording(false)
       }
+
+      // if (!user_data.is_creator) {
+      //   setDonate(true)
+      // }
 
     }
     if (dir === LEFT) {
@@ -480,6 +495,9 @@ export default function TextBroadCast(props) {
     setState({
       value: ""
     })
+    // db.ref(`/Spaces/${props.spaceId}/`).update({
+    //   available: isprivate === true ? "public" : "private"
+    // })
   }, [isprivate])
 
 
@@ -510,7 +528,7 @@ export default function TextBroadCast(props) {
               onClick={autoFocus}
             >
               {balance <= 0 ? null :
-                <Text style={{ marginLeft: width - ((10 / 100) * width), position: 'absolute' }}>Balance: {balance}</Text>}
+                (<Text style={{ marginLeft: width - ((10 / 100) * width), position: 'absolute' }}>Balance: {balance}</Text>)}
               <View>
                 <View style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 5, fontFamily: 'cursive' }}>{turn}</View>
                 {!user_data.is_creator ?
@@ -537,35 +555,35 @@ export default function TextBroadCast(props) {
                       {!user_data.is_creator ?
                         <>
                           {state.value === "" ?
-                            <Text>{message}</Text>
+                            (<Text>{message}</Text>)
                             :
-                            <Text>{state.value}</Text>
+                            (<Text>{state.value}</Text>)
                           }
                         </>
                         :
-                        <span style={{ letterSpacing: 1 }}>{state.value}</span>
+                        <View style={{ display: 'flex', flexFlow: 'row' }}><span style={{ letterSpacing: 1 }}>{state.value}</span><span style={{ letterSpacing: 1 }}>{word}</span></View>
                       }
                     </View>
 
                   }
 
-                    <TextInput
-                      name="usertext"
-                      multiline={true}
-                      numberOfLines={1}
-                      style={{
-                        outline: "none",
-                        border: "none",
-                        color: "#888888",
-                      }}
-                      id="standard-multiline-flexible"
-                      style={{ outline: "none", width: 2, position: 'absolute' }}
-                      value=""
-                      onKeyPress={handleInput}
-                      autoFocus={true}
-                      editable={user_data.is_creator ? status === "host" : (status === "guest" && accceptance === true || turn === props.spaceId)}
-                      ref={textInputRef}
-                    />
+                  <TextInput
+                    name="usertext"
+                    multiline={true}
+                    numberOfLines={1}
+                    style={{
+                      outline: "none",
+                      border: "none",
+                      color: "#888888",
+                    }}
+                    id="standard-multiline-flexible"
+                    style={{ outline: "none", width: 2, position: 'absolute' }}
+                    value=""
+                    onKeyPress={handleInput}
+                    autoFocus={true}
+                    editable={user_data.is_creator ? status === "host" : (status === "guest" && accceptance === true || turn === props.spaceId)}
+                    ref={textInputRef}
+                  />
                 </Text>
               </View>
               <ScrollView
@@ -578,9 +596,9 @@ export default function TextBroadCast(props) {
                 }}
               >
                 {!user_data.is_creator && status === "" && requester === "" ? (
-                  <CButton onClick={getTurn} title="Take turn" />
+                  <button onClick={getTurn}>Take turn</button>
                 ) : (user_data.is_creator && status !== "host") || status === "" ? (
-                    <button onClick={getTurn}>Take turn</button>
+                  <button onClick={getTurn}>Take turn</button>
                 ) : null}
 
                 {(!user_data.is_creator && status === "guest" && accceptance === true) ||

@@ -1,5 +1,5 @@
-import { db, database } from "../../../App";
-import * as firebase from "firebase";
+import { db, database } from "./App";
+import firebase from "firebase";
 
 import React, { useEffect, useState, useRef } from "react";
 import { Dimensions, Text, TextInput, View } from "react-native";
@@ -92,7 +92,7 @@ export default function Donation(props) {
     };
 
     return (
-        <View style={{ position: "absolute", bottom: 11 }}>
+        <View style={{ position: "absolute", bottom: 25 }}>
             <Tooltip title="Donate" placement="right">
                 <IconButton color="inherit" onClick={donation}>
                     <AttachMoneyIcon />

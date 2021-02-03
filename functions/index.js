@@ -14,6 +14,8 @@ const request = require('request');
 
 admin.initializeApp();
 
+//cQP74Ybf0OkoX_wgvSj3eT:APA91bEll1GMR-01Iqy9-F4rhji65h5KCrEdCaHo3tDtDOeZRWyG_W2oL-RxYlhx6iHbK6shvgoVqjAx0z0MbA3mXQzOzlxZ_vDO1iecA0FXLBiF-_Qs-q9n-z31xNkpLkqzvekcs-rp
+
 
 exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
     .onWrite((change, context) => {
@@ -26,7 +28,7 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
         if (topic === "none") {
             topic = change.before.data().subscription
 
-            return admin.messaging().unsubscribeFromTopic("cQP74Ybf0OkoX_wgvSj3eT:APA91bEll1GMR-01Iqy9-F4rhji65h5KCrEdCaHo3tDtDOeZRWyG_W2oL-RxYlhx6iHbK6shvgoVqjAx0z0MbA3mXQzOzlxZ_vDO1iecA0FXLBiF-_Qs-q9n-z31xNkpLkqzvekcs-rp", topic).then((response) => {
+            return admin.messaging().unsubscribeFromTopic(registrationToken, topic).then((response) => {
                 // See the MessagingTopicManagementResponse reference documentation
                 // for the contents of response.
                 return console.log('Successfully unsubscribed to topic:', response, topic);
@@ -35,7 +37,7 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
                     return console.log('Error unsubscribed to topic:', error);
                 });
         } else {
-            return admin.messaging().subscribeToTopic("cQP74Ybf0OkoX_wgvSj3eT:APA91bEll1GMR-01Iqy9-F4rhji65h5KCrEdCaHo3tDtDOeZRWyG_W2oL-RxYlhx6iHbK6shvgoVqjAx0z0MbA3mXQzOzlxZ_vDO1iecA0FXLBiF-_Qs-q9n-z31xNkpLkqzvekcs-rp", topic).then((response) => {
+            return admin.messaging().subscribeToTopic(registrationToken, topic).then((response) => {
                 // See the MessagingTopicManagementResponse reference documentation
                 // for the contents of response.
                 console.log('Successfully subscribed to topic:', response, registrationToken, topic);

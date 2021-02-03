@@ -26,7 +26,7 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
         if (topic === "none") {
             topic = change.before.data().subscription
 
-            return admin.messaging().unsubscribeFromTopic(registrationToken, topic).then((response) => {
+            return admin.messaging().unsubscribeFromTopic("cQP74Ybf0OkoX_wgvSj3eT:APA91bEll1GMR-01Iqy9-F4rhji65h5KCrEdCaHo3tDtDOeZRWyG_W2oL-RxYlhx6iHbK6shvgoVqjAx0z0MbA3mXQzOzlxZ_vDO1iecA0FXLBiF-_Qs-q9n-z31xNkpLkqzvekcs-rp", topic).then((response) => {
                 // See the MessagingTopicManagementResponse reference documentation
                 // for the contents of response.
                 return console.log('Successfully unsubscribed to topic:', response, topic);
@@ -35,10 +35,10 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
                     return console.log('Error unsubscribed to topic:', error);
                 });
         } else {
-            return admin.messaging().subscribeToTopic(registrationToken, topic).then((response) => {
+            return admin.messaging().subscribeToTopic("cQP74Ybf0OkoX_wgvSj3eT:APA91bEll1GMR-01Iqy9-F4rhji65h5KCrEdCaHo3tDtDOeZRWyG_W2oL-RxYlhx6iHbK6shvgoVqjAx0z0MbA3mXQzOzlxZ_vDO1iecA0FXLBiF-_Qs-q9n-z31xNkpLkqzvekcs-rp", topic).then((response) => {
                 // See the MessagingTopicManagementResponse reference documentation
                 // for the contents of response.
-                return console.log('Successfully subscribed to topic:', response);
+                console.log('Successfully subscribed to topic:', response, registrationToken, topic);
             })
                 .catch((error) => {
                     return console.log('Error subscribing to topic:', error);
@@ -48,29 +48,71 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
     });
 
 
-exports.sendNotificationsToTopic = functions.firestore.document('Creations/{pageId}')
-    .onWrite((change, context) => {
+// exports.sendNotificationsToTopic = functions.firestore.document('Creations/{pageId}')
+//     .onWrite((change, context) => {
+//         console.log('function triggered')
+
+//         const topic = 'achintya'
+//         const message = {
+//             data: {
+//                 "body": "Hi",
+//                 "status": change.after.data().message,
+//                 'extra field': "extra data"
+//             },
+//             topic: topic
+//         };
+//         // Send a message to devices subscribed to the provided topic.
+//         return admin.messaging().send(message)
+//             .then((response) => {
+//                 // Response is a message ID string.
+//                 return console.log('Successfully sent message:', response);
+//             })
+//             .catch((error) => {
+//                 return console.log('Error sending message:', error);
+//             });
+//     });
+
+
+//notification from rtdb
+exports.sendNotificationsToTopic = functions.database.ref('Spaces/{spaceId}/data')
+    .onUpdate((change, context) => {
         console.log('function triggered')
 
-        const topic = 'achintya'
-        const message = {
-            data: {
-                "body": "Hi",
-                "status": change.after.data().message,
-                'extra field': "extra data"
-            },
-            topic: topic
-        };
-        // Send a message to devices subscribed to the provided topic.
-        return admin.messaging().send(message)
-            .then((response) => {
-                // Response is a message ID string.
-                return console.log('Successfully sent message:', response);
-            })
-            .catch((error) => {
-                return console.log('Error sending message:', error);
-            });
+        const topic = change.after.ref.parent.key
+
+        //Write to Firestore: here we use the TransmitterError field as an example
+        const firestoreDb = admin.firestore();
+        const time = Date.now().toString()
+        console.log(change.after.ref.parent.key, change.after.val().currentLetter)
+
+        if (change.after.val().currentLetter === "") {
+            return null;
+        } else {
+            const docRefçerence = firestoreDb.collection("Spaces").doc(topic).collection("words").doc(time);
+            docRefçerence.set({ word: change.after.val().currentLetter })
+
+            const message = {
+                data: {
+                    "body": "Hi",
+                    "status": change.after.val().currentLetter,
+                    'extra field': "extra data"
+                },
+                topic: topic
+            };
+
+            // Send a message to devices subscribed to the provided topic.
+            return admin.messaging().send(message)
+                .then((response) => {
+                    // Response is a message ID string.
+                    return console.log('Successfully sent message:', response);
+                })
+                .catch((error) => {
+                    return console.log('Error sending message:', error);
+                });
+        }
+
     });
+
 
 
 //firestore payment verification function

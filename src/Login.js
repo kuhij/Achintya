@@ -34,51 +34,34 @@ export default function Login(props) {
 
     const [profileId, setProfileId] = useState("");
 
-    useEffect(() => {
-        let first;
-        firebase.database().ref(`/Spaces/`).on("value", function (snapshot) {
-            if (snapshot.val()) {
-                if (count > 0) {
-                    first = firebase.database().ref().child("/Spaces/").orderByChild("count").limitToFirst(1).startAt(watchers + 1)
-                } else {
-                    first = firebase.database().ref().child("/Spaces/").orderByChild("count").limitToFirst(1)
-                }
+    // useEffect(() => {
+    //     let first;
+    //     firebase.database().ref(`/Spaces`).on("value", function (snapshot) {
+    //         if (snapshot.val()) {
+    //             if (count > 0) {
+    //                 first = firebase.database().ref().child("/Spaces/").orderByChild("count").limitToFirst(1).startAt(watchers + 1)
+    //             } else {
+    //                 first = firebase.database().ref().child("/Spaces/").orderByChild("count").limitToFirst(1)
+    //             }
 
-                first.once("child_added", function (snapshot) {
-                    console.log(snapshot.val(), snapshot.key);
-                    dispatchAction(UPDATE_USER_DATA, {
-                        data: {
-                            is_creator: false,
-                            joinedSpace: snapshot.key,
-                            anonymous_user: true
-                        },
-                    });
-                    //history.push(`/${snapshot.key}`)
-                    setWatchers(snapshot.val().count)
-                })
-            } else {
-                setShowLogin(true)
-            }
-        })
+    //             first.once("child_added", function (snapshot) {
+    //                 console.log(snapshot.val(), snapshot.key);
+    //                 dispatchAction(UPDATE_USER_DATA, {
+    //                     data: {
+    //                         is_creator: false,
+    //                         joinedSpace: snapshot.key,
+    //                         anonymous_user: true
+    //                     },
+    //                 });
+    //                 //history.push(`/${snapshot.key}`)
+    //                 setWatchers(snapshot.val().count)
+    //             })
+    //         } else {
+    //             setShowLogin(true)
+    //         }
+    //     })
 
-    }, [count])
-
-    useEffect(() => {
-        messaging
-            .requestPermission()
-            .then(function () {
-                console.log("permission granted");
-
-                return messaging.getToken();
-            })
-            .then((token) => {
-                dispatchAction(UPDATE_USER_DATA, {
-                    data: {
-                        token: token
-                    },
-                });
-            });
-    }, [])
+    // }, [count])
 
     const googleLogin = async () => {
         firebase.database().ref(`/Spaces/${profileId}`).once("value", (snap) => {
@@ -124,11 +107,12 @@ export default function Login(props) {
         })
     };
 
-    
+
 
     const onSwiping = ({ dir }) => {
         if (dir === DOWN) {
-            setShowLogin(true)
+            //setShowLogin(true)
+            console.log('down');
         }
         if (dir === UP) {
             setCount(count + 1)
@@ -137,58 +121,50 @@ export default function Login(props) {
 
     return (
         <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true} >
-            {console.log(watchers, user_data.joinedSpac)}
             <View>
-                {showLogin === false && home === false && user_data.joinedSpace !== ""  ?
-                    // <TextBroadCast />
-                    <h1>groups</h1>
-                    :
-                    <View>
-                        {home === false || showLogin === true ?
-                            <View style={{ marginTop: height / 8.5, width: width1, margin: 'auto' }}>
-                                <Image
-                                    style={{
-                                        marginHorizontal: "auto",
-                                        marginVertical: 20,
-                                        textAlign: "center",
-                                        maxWidth: "100%",
-                                    }}
-                                    source={{ uri: "favicon.png", width: width1, height: height1 }}
-                                />
-                                <Text style={{ fontSize: 28, fontWeight: 600, textAlign: 'center' }}>Achintya</Text>
-                                <br />
-                                <br />
-                                <TextField
-                                    variant="outlined"
-                                    placeholder="Enter Profile Id"
-                                    size="small"
-                                    value={profileId}
-                                    onChange={(e) => setProfileId(e.target.value)}
-                                //onClick={visitCreator}
-                                />
-                                <br />
-                                <button
-                                    onClick={googleLogin}
-                                    style={{
-                                        fontSize: 13,
-                                        color: "white",
-                                        background: 'black',
-                                        height: 38,
-                                        borderRadius: 3,
-                                        fontFamily: 'emoji',
-                                        fontSize: 16,
-                                        border: 'none',
-                                        cursor: 'pointer'
-                                    }}
+                {home === false || showLogin === true ?
+                    <View style={{ marginTop: height / 8.5, width: width1, margin: 'auto' }}>
+                        <Image
+                            style={{
+                                marginHorizontal: "auto",
+                                marginVertical: 20,
+                                textAlign: "center",
+                                maxWidth: "100%",
+                            }}
+                            source={{ uri: "favicon.png", width: width1, height: height1 }}
+                        />
+                        <Text style={{ fontSize: 28, fontWeight: 600, textAlign: 'center' }}>Achintya</Text>
+                        <br />
+                        <br />
+                        <TextField
+                            variant="outlined"
+                            placeholder="Enter Profile Id"
+                            size="small"
+                            value={profileId}
+                            onChange={(e) => setProfileId(e.target.value)}
+                        //onClick={visitCreator}
+                        />
+                        <br />
+                        <button
+                            onClick={googleLogin}
+                            style={{
+                                fontSize: 13,
+                                color: "white",
+                                background: 'black',
+                                height: 38,
+                                borderRadius: 3,
+                                fontFamily: 'emoji',
+                                fontSize: 16,
+                                border: 'none',
+                                cursor: 'pointer'
+                            }}
 
-                                >
-                                    Login with Google
+                        >
+                            Login with Google
       </button>
-                            </View>
-                            :
-                            <HomePage email={emailId} name={profileId} />
-                        }
                     </View>
+                    :
+                    <HomePage email={emailId} name={profileId} />
                 }
             </View>
         </Swipeable>

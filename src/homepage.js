@@ -6,6 +6,7 @@ import Button from '@material-ui/core/Button';
 import AddIcon from '@material-ui/icons/Add';
 import ShareIcon from '@material-ui/icons/Share';
 import MeetingRoomIcon from '@material-ui/icons/MeetingRoom';
+import { TextField } from "@material-ui/core";
 import { makeStyles } from '@material-ui/core/styles';
 import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable";
 
@@ -53,10 +54,14 @@ const useStyles = makeStyles((theme) => ({
     },
 }));
 
+let high = {}
+
 export default function HomePage({ name, email }) {
     const classes = useStyles();
     const dispatchAction = useActionDispatcher();
     const history = useHistory();
+
+    const user_data = useSelector((state) => state.globalUserData);
 
     const [amount, setAmount] = useState(0)
     const [receiver, setReceiver] = useState("")
@@ -70,6 +75,15 @@ export default function HomePage({ name, email }) {
     const [room, setRoom] = useState(false)
     const [count, setCount] = useState(0)
     const [time, setTime] = useState(null)
+    const [showCamp, setShowCamp] = useState(false)
+
+    const [startPrice, setStartPrice] = useState(0);
+    const [minVal, setMinVal] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [paymentPage, setPaymentPage] = useState(true);
+    const [title, setTitle] = useState("");
+    const [auctionData, setAuctionData] = useState(null)
+
 
 
     useEffect(() => {
@@ -78,6 +92,26 @@ export default function HomePage({ name, email }) {
             setAmount(snap.val().balance)
         })
 
+        messaging
+            .requestPermission()
+            .then(function () {
+                console.log("permission granted");
+
+                return messaging.getToken();
+            })
+            .then((token) => {
+                console.log(token);
+                // dispatchAction(UPDATE_USER_DATA, {
+                //     data: {
+                //         token: token
+                //     },
+                // });
+                database.collection("actions").doc(name).set({
+                    subscription: name,
+                    fcmtoken: token,
+                    time: firebase.firestore.FieldValue.serverTimestamp()
+                })
+            });
     }, [])
 
     useEffect(() => {
@@ -97,6 +131,7 @@ export default function HomePage({ name, email }) {
                 setTime(doc.data().time.toDate())
             })
         })
+
     }, [count])
 
     const addMoney = () => {
@@ -112,15 +147,6 @@ export default function HomePage({ name, email }) {
             if (parseInt(value) < 100) {
                 alert("Amount should be equal or more than 100")
             } else {
-                // database.collection("transactions").doc(payId).set({
-                //     amount: value + "+",
-                //     wallet: [name, "self"],
-                //     time: firebase.firestore.FieldValue.serverTimestamp()
-                // }).then(() => {
-                //     db.ref(`/${name}/`).update({
-                //         balance: firebase.database.ServerValue.increment(parseInt(value))
-                //     })
-                // })
                 openCheckout(parseInt(value))
             }
         })
@@ -316,7 +342,7 @@ export default function HomePage({ name, email }) {
     }
 
     const goToRoom = () => {
-        setRoom(true)
+        history.push(`/${name}`)
         dispatchAction(UPDATE_USER_DATA, {
             data: {
                 creator: true,
@@ -325,14 +351,180 @@ export default function HomePage({ name, email }) {
                 active_room_id: name,
             },
         });
-        history.push(`/${name}`)
+        setRoom(true)
     }
+
+    const startBiding = () => {
+        db.ref(`/auctions/0`).update({
+            title: title,
+            duration: parseInt(duration),
+            minPrice: parseInt(minVal),
+            startPrice: parseInt(startPrice),
+            status: 'open',
+            owner: name
+        })
+    }
+
+    const auctionCheckout = (amount) => {
+        let options = {
+            key: "rzp_live_1hWjIFVX8QIpW8",
+            amount: parseInt(amount) * 100,
+            name: "Achintya",
+            currency: "INR",
+            description: `Donation`,
+            image: "./favicon.png",
+            handler: async function (response) {
+                if (response.razorpay_payment_id) {
+                    await firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).set({
+                        paymentId: response.razorpay_payment_id,
+                        claimedAmount: parseInt(amount),
+                        wallet: [name, auctionData[0].owner],
+                        time: firebase.firestore.FieldValue.serverTimestamp()
+                    }).then(() => {
+                        firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).onSnapshot(async function (doc) {
+                            if (doc.data()) {
+                                if (doc.data().paidAmount) {
+                                    if (parseInt(doc.data().paidAmount.slice(0, -1)) === parseInt(amount) && doc.data().status === 1) {
+
+                                        await firebase
+                                            .database()
+                                            .ref(`/auction/0/participants/${name}`)
+                                            .update({
+                                                donation: firebase.database.ServerValue.increment(parseInt(doc.data().paidAmount.slice(0, -1))),
+                                            })
+                                            .then(() => {
+                                                swal({
+                                                    title:
+                                                        "Transaction Successful for INR " + amount,
+                                                    text:
+                                                        "Congatulations! Your donation is successfull. You can save your Transaction ID - " +
+                                                        response.razorpay_payment_id.replace("pay_", ""),
+                                                    icon: "success",
+                                                    button: "Join Auction",
+                                                    buttonColor: "#000",
+                                                }).then(() => {
+                                                    joinAuctionForm()
+                                                })
+                                            })
+                                    }
+                                }
+                            }
+                        })
+                    })
+                }
+            },
+            prefill: {
+                name: "",
+                email: "",
+            },
+            notes: {
+                address: "Hello World",
+            },
+            theme: {
+                color: "#000000",
+            },
+        }
+        let rzp = new window.Razorpay(options);
+        rzp.open();
+    }
+
+    const joinAuctionForm = () => {
+        swal({
+            text: 'Enter Biding Amount',
+            content: "input",
+            button: {
+                text: "Add",
+                closeModal: true,
+            },
+        }).then((value) => {
+            if (parseInt(value) < auctionData[0].minPrice + auctionData[0].startPrice) {
+                swal({
+                    text: `Bid value must be higher than current value by INR ${auctionData[0].minPrice}`,
+                    icon: "info",
+                    button: {
+                        text: "OK",
+                        closeModal: true,
+                    },
+                })
+            } else {
+                db.ref(`/auctions/0/participants/${name}`).update({
+                    bidingAmount: parseInt(value)
+                })
+                db.ref(`/auctions/0`).update({
+                    startPrice: firebase.database.ServerValue.increment(parseInt(value))
+                })
+            }
+        })
+    }
+
+    const joiAuction = () => {
+        swal({
+            text: 'Donate INR 1000 to eligible for donation.',
+            icon: 'info',
+            button: {
+                text: "Donate",
+                closeModal: true,
+            },
+        }).then(() => {
+            db.ref(`/auctions/0/participants/${name}/donation`).on("value", function (snap) {
+                if (snap.val()) {
+                    joinAuctionForm()
+                } else {
+                    auctionCheckout(1000)
+                }
+            })
+
+        })
+    }
+
+    useEffect(() => {
+        db.ref("/auctions/").limitToFirst(1).on("value", function (snap) {
+            db.ref("/auctions/0/participants/").orderByChild("bidingAmount").limitToLast(1).on("child_added", function (child) {
+                if (child.val()) {
+                    console.log(child.val(), child.key);
+                    high.name = child.key
+                    high.amount = child.val().bidingAmount
+                } else {
+                    return null;
+                }
+
+            })
+            console.log(snap.val());
+            setAuctionData(snap.val())
+        })
+    }, [])
+
+    useEffect(() => {
+        const date = new Date()
+        let hours;
+        if (auctionData !== null) {
+            let days = auctionData[0].duration
+            let seconds = days * 24 * 60 * 60 - date.getSeconds()
+            const timer = setInterval(() => {
+                seconds = seconds - 1
+                //hours
+                hours = Math.floor(seconds / 60 / 60)
+                if (hours === 0) {
+                    db.ref(`/auctions/0/`).update({
+                        status: 'closed'
+                    })
+                    clearInterval(timer)
+                }
+                //console.log(hours);
+            }, 1000);
+
+        }
+    }, [auctionData])
 
     const onSwiping = ({ dir }) => {
         if (dir === UP) {
             console.log(transactions.paymentId);
             setShowTransactions(true)
             setCount(count + 1)
+        }
+        if (dir === DOWN) {
+            setShowCamp(true)
+            setPaymentPage(false)
         }
     }
 
@@ -345,7 +537,7 @@ export default function HomePage({ name, email }) {
 
                     <View>
                         <img src="edit-solid.svg" style={{ height: 30, position: 'absolute', marginLeft: '95%', marginTop: 15, cursor: 'pointer' }} onClick={goToRoom} />
-                        {showTransactions === false ?
+                        {showTransactions === false && paymentPage === true ?
                             <View style={{ marginTop: height / 4 }}>
                                 <View style={{ display: 'flex', alignItems: 'center' }}>
                                     <Text style={{ fontSize: width < 500 ? 95 : 140 }}>
@@ -378,73 +570,132 @@ export default function HomePage({ name, email }) {
                                     >
                                         Transfer Money
       </Button>
+                                    {auctionData !== null ?
+                                        <View style={{ border: 'none', padding: 20 }}>
 
-                                </View>
-
-                            </View>
-                            :
-                            <View style={{ marginTop: (height / 7) }}>
-                                <h3 style={{ textAlign: 'center', fontFamily: 'auto', marginBottom: 20 }}>Transaction history</h3>
-                                <View style={{ display: 'flex', flexFlow: width < 600 ? "column" : 'row', flexWrap: 'wrap', margin: width < 600 ? "auto" : 15, marginTop: width < 600 ? 15 : null, justifyContent: 'center' }}>
-
-                                    <Card className={classes.root} style={{ width: width / 1.2, margin: 15, height: height / 1.9 }}>
-                                        <CardContent style={{ marginTop: 15 }}>
-                                            <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-evenly', alignItems: 'center' }}>
-                                                <View>
-                                                    <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 16 }}>
-                                                        {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? "Money Added" : "Money Paid"}
-                                                    </Typography>
-                                                    <Typography variant="h5" component="h2" style={{ fontWeight: 600, marginBottom: 5, fontSize: 20, marginTop: 5 }}>
-                                                        <span>&#8377;</span> {transactions.paidAmount.slice(0, -1)}
-                                                    </Typography>
-
-
-                                                    <View style={{ display: 'flex', flexFlow: 'row', marginBottom: 15, marginTop: 10 }}>
-                                                        <Typography variant="h5" component="h2" style={{ textAlign: 'center', fontSize: 11 }}>
-                                                            {transactions.time.toDate().toString().slice(3, 10)},{"  "}
-                                                        </Typography>
-                                                        <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginLeft: 2, fontSize: 11 }}>
-                                                            {transactions.time.toDate().toString().slice(15, 21)}
-                                                        </Typography>
-                                                    </View>
+                                            {/* <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-around' }}>
+                                                <Text><b>Title:</b> {auctionData[0].title}</Text>
+                                                <Text><b>Auction Status:</b> {auctionData[0].status}</Text>
+                                            </View>
+                                            <View>
+                                                {/* <Text>{high.name}</Text>
+                                                <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'center' }}>
+                                                    <b>Highest Bid Value</b>
+                                                    <br />
+                                                    <Text>{auctionData[0].startPrice}</Text>
                                                 </View>
-                                                <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 20 }}>
-                                                    {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? <button style={{ border: 'none', borderRadius: '50%', background: '#24cc81', color: 'white', width: 20, height: 20 }}>+</button> : <button style={{ border: 'none', borderRadius: '50%', background: '#f84b6e', color: 'white', fontSize: 16, width: 20 }}>-</button>}
-                                                </Typography>
-
 
                                             </View>
-
-                                            <View style={{ height: 0.5, width: '100%', background: 'black', marginTop: '2%' }}></View>
-                                            <br />
-                                            <View style={{ margin: 15, marginTop: '2%' }}>
-                                                <Text>Transaction Id: {transactionId}</Text>
-                                            </View>
-                                            <TableContainer component={Paper} style={{ marginTop: '2%' }}>
-                                                <Table className={classes.table} aria-label="simple table">
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableCell>Dr: </TableCell>
-                                                            <TableCell align="right">Cr: </TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        <TableRow >
-                                                            <TableCell component="th" scope="row" style={{ fontFamily: 'auto' }}>
-                                                                {transactions.wallet[0]}
-                                                            </TableCell>
-                                                            <TableCell align="right">{transactions.wallet[1]}</TableCell>
-                                                        </TableRow>
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
-
-                                        </CardContent>
-                                    </Card>
-
+                                            <Text><b>Duration:</b> {auctionData[0].duration}</Text>
+                                            <Button variant="contained" color="primary" style={{ marginTop: 15 }} onClick={joiAuction}>
+                                                Join Auction
+                                            </Button> */}
+                                        </View>
+                                        : null}
                                 </View>
 
                             </View>
+                            : showCamp === true && paymentPage === false ?
+                                <View style={{ padding: '30px', width: '50%', margin: 'auto', border: '1px solid', marginTop: '15%' }}>
+                                    <TextField
+                                        id="standard-text"
+                                        label="Title"
+                                        type="text"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                    />
+                                    <br />
+                                    <TextField
+                                        id="standard-number"
+                                        label="Min. Inc."
+                                        type="number"
+                                        value={minVal}
+                                        onChange={(e) => setMinVal(e.target.value)}
+                                    />
+                                    <br />
+                                    <TextField
+                                        id="standard-number"
+                                        label="Biding Duration"
+                                        type="number"
+                                        value={duration}
+                                        onChange={(e) => setDuration(e.target.value)}
+                                    />
+                                    <br />
+                                    <TextField
+                                        id="standard-number"
+                                        label="Start Price"
+                                        type="number"
+                                        value={startPrice}
+                                        onChange={(e) => setStartPrice(e.target.value)}
+                                    />
+                                    <br />
+                                    <Button variant="contained" color="primary" onClick={startBiding}>
+                                        Primary
+                                    </Button>
+                                </View>
+                                :
+                                <View style={{ marginTop: (height / 7) }}>
+                                    <h3 style={{ textAlign: 'center', fontFamily: 'auto', marginBottom: 20 }}>Transaction history</h3>
+                                    <View style={{ display: 'flex', flexFlow: width < 600 ? "column" : 'row', flexWrap: 'wrap', margin: width < 600 ? "auto" : 15, marginTop: width < 600 ? 15 : null, justifyContent: 'center' }}>
+
+                                        <Card className={classes.root} style={{ width: width / 1.2, margin: 15, height: height / 1.9 }}>
+                                            <CardContent style={{ marginTop: 15 }}>
+                                                <View style={{ display: 'flex', flexFlow: 'row', justifyContent: 'space-evenly', alignItems: 'center' }}>
+                                                    <View>
+                                                        <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 16 }}>
+                                                            {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? "Money Added" : "Money Paid"}
+                                                        </Typography>
+                                                        <Typography variant="h5" component="h2" style={{ fontWeight: 600, marginBottom: 5, fontSize: 20, marginTop: 5 }}>
+                                                            <span>&#8377;</span> {transactions.paidAmount.slice(0, -1)}
+                                                        </Typography>
+
+
+                                                        <View style={{ display: 'flex', flexFlow: 'row', marginBottom: 15, marginTop: 10 }}>
+                                                            <Typography variant="h5" component="h2" style={{ textAlign: 'center', fontSize: 11 }}>
+                                                                {transactions.time.toDate().toString().slice(3, 10)},{"  "}
+                                                            </Typography>
+                                                            <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginLeft: 2, fontSize: 11 }}>
+                                                                {transactions.time.toDate().toString().slice(15, 21)}
+                                                            </Typography>
+                                                        </View>
+                                                    </View>
+                                                    <Typography variant="h5" component="h2" style={{ textAlign: 'center', marginBottom: 5, fontSize: 20 }}>
+                                                        {transactions.paidAmount.charAt(transactions.paidAmount.length - 1) === "+" ? <button style={{ border: 'none', borderRadius: '50%', background: '#24cc81', color: 'white', width: 20, height: 20 }}>+</button> : <button style={{ border: 'none', borderRadius: '50%', background: '#f84b6e', color: 'white', fontSize: 16, width: 20 }}>-</button>}
+                                                    </Typography>
+
+
+                                                </View>
+
+                                                <View style={{ height: 0.5, width: '100%', background: 'black', marginTop: '2%' }}></View>
+                                                <br />
+                                                <View style={{ margin: 15, marginTop: '2%' }}>
+                                                    <Text>Transaction Id: {transactionId}</Text>
+                                                </View>
+                                                <TableContainer component={Paper} style={{ marginTop: '2%' }}>
+                                                    <Table className={classes.table} aria-label="simple table">
+                                                        <TableHead>
+                                                            <TableRow>
+                                                                <TableCell>Dr: </TableCell>
+                                                                <TableCell align="right">Cr: </TableCell>
+                                                            </TableRow>
+                                                        </TableHead>
+                                                        <TableBody>
+                                                            <TableRow >
+                                                                <TableCell component="th" scope="row" style={{ fontFamily: 'auto' }}>
+                                                                    {transactions.wallet[0]}
+                                                                </TableCell>
+                                                                <TableCell align="right">{transactions.wallet[1]}</TableCell>
+                                                            </TableRow>
+                                                        </TableBody>
+                                                    </Table>
+                                                </TableContainer>
+
+                                            </CardContent>
+                                        </Card>
+
+                                    </View>
+
+                                </View>
 
                         }
                     </View>

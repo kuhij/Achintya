@@ -58,13 +58,11 @@ export default function Creation(props) {
           height: "100%",
         }}
       >
-        {user_data.is_creator || user_data.joinedOther ?
             <Groups
               spaceId={username}
               creator={user_data.is_creator}
             />
-          : <h2>You are not authorised to view this content.</h2>
-        }
+         
       </View>
     </Swipeable>
   );

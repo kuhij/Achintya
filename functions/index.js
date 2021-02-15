@@ -27,15 +27,15 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
 
         if (topic === "none") {
             topic = change.before.data().subscription
-
-            return admin.messaging().unsubscribeFromTopic(registrationToken, topic).then((response) => {
-                // See the MessagingTopicManagementResponse reference documentation
-                // for the contents of response.
-                return console.log('Successfully unsubscribed to topic:', response, topic);
-            })
-                .catch((error) => {
-                    return console.log('Error unsubscribed to topic:', error);
-                });
+            console.log(topic);
+            // return admin.messaging().unsubscribeFromTopic(registrationToken, topic).then((response) => {
+            //     // See the MessagingTopicManagementResponse reference documentation
+            //     // for the contents of response.
+            //     return console.log('Successfully unsubscribed to topic:', response, topic);
+            // })
+            //     .catch((error) => {
+            //         return console.log('Error unsubscribed to topic:', error);
+            //     });
         } else {
             return admin.messaging().subscribeToTopic(registrationToken, topic).then((response) => {
                 // See the MessagingTopicManagementResponse reference documentation
@@ -50,70 +50,111 @@ exports.subscribeToTopic = functions.firestore.document('actions/{actionId}')
     });
 
 
-// exports.sendNotificationsToTopic = functions.firestore.document('Creations/{pageId}')
-//     .onWrite((change, context) => {
-//         console.log('function triggered')
+exports.sendNotificationsToTopic = functions.firestore.document('Users/{userId}/pages/{pageId}')
+    .onWrite((change, context) => {
+        console.log('function triggered')
 
-//         const topic = 'achintya'
-//         const message = {
-//             data: {
-//                 "body": "Hi",
-//                 "status": change.after.data().message,
-//                 'extra field': "extra data"
-//             },
-//             topic: topic
-//         };
-//         // Send a message to devices subscribed to the provided topic.
-//         return admin.messaging().send(message)
-//             .then((response) => {
-//                 // Response is a message ID string.
-//                 return console.log('Successfully sent message:', response);
-//             })
-//             .catch((error) => {
-//                 return console.log('Error sending message:', error);
-//             });
-//     });
+        const topic = 'achintya'
+        const message = {
+            data: {
+                "body": "Hi",
+                "status": change.after.data().message,
+                'extra field': "extra data"
+            },
+            topic: topic
+        };
+        // Send a message to devices subscribed to the provided topic.
+        return admin.messaging().send(message)
+            .then((response) => {
+                // Response is a message ID string.
+                return console.log('Successfully sent message:', response);
+            })
+            .catch((error) => {
+                return console.log('Error sending message:', error);
+            });
+    });
 
 
 //notification from rtdb
-exports.sendNotificationsToTopic = functions.database.ref('Spaces/{spaceId}/data')
-    .onUpdate((change, context) => {
-        console.log('function triggered')
+// exports.sendNotificationsToTopic = functions.database.ref('Spaces/{spaceId}/data')
+//     .onUpdate((change, context) => {
+//         console.log('function triggered')
 
-        const topic = change.after.ref.parent.key
+//         const topic = change.after.ref.parent.key;
+//         //change.after.ref.parent.child("online").on
+//         //Write to Firestore: here we use the TransmitterError field as an example
+//         const firestoreDb = admin.firestore();
+//         const time = Date.now().toString()
+//         console.log(change.after.ref.parent.key, change.after.val().currentLetter)
 
-        //Write to Firestore: here we use the TransmitterError field as an example
-        const firestoreDb = admin.firestore();
-        const time = Date.now().toString()
-        console.log(change.after.ref.parent.key, change.after.val().currentLetter)
+//         if (change.after.val().currentLetter === "") {
+//             return null;
+//         } else {
+//             const docRefçerence = firestoreDb.collection("Spaces").doc(topic).collection("words").doc(time);
+//             docRefçerence.set({ word: change.after.val().currentLetter, time: Date.now() })
 
-        if (change.after.val().currentLetter === "") {
-            return null;
-        } else {
-            const docRefçerence = firestoreDb.collection("Spaces").doc(topic).collection("words").doc(time);
-            docRefçerence.set({ word: change.after.val().currentLetter })
+//             const message = {
+//                 data: {
+//                     "body": "Hi",
+//                     "status": change.after.val().currentLetter,
+//                     'extra field': "extra data"
+//                 },
+//                 topic: topic
+//             };
 
-            const message = {
-                data: {
-                    "body": "Hi",
-                    "status": change.after.val().currentLetter,
-                    'extra field': "extra data"
-                },
-                topic: topic
-            };
+//             // Send a message to devices subscribed to the provided topic.
+//             return admin.messaging().send(message)
+//                 .then((response) => {
+//                     // Response is a message ID string.
+//                     return console.log('Successfully sent message:', response);
+//                 })
+//                 .catch((error) => {
+//                     return console.log('Error sending message:', error);
+//                 });
+//         }accouts/{username}/paypalCaptureId
 
-            // Send a message to devices subscribed to the provided topic.
-            return admin.messaging().send(message)
-                .then((response) => {
-                    // Response is a message ID string.
-                    return console.log('Successfully sent message:', response);
-                })
-                .catch((error) => {
-                    return console.log('Error sending message:', error);
-                });
+//     });
+
+exports.paypalTransactions = functions.database.ref('accounts/{username}/paypal').onWrite((change, context) => {
+
+    const captureId = change.after.val().paypalCaptureId
+    const currency = change.after.val().currency
+    const amount = change.after.val().amount
+
+
+    return request({
+        method: 'GET',
+        url: `https://api-m.paypal.com/v2/payments/captures/${captureId}`,
+        headers: {
+            Authorization: "Bearer A21AAN0Z6e4gLaAkb9ohHwDAc8pBWD8WZsk8gZfg0z0RIrQS4AhabtxHW3u2Ehjz0U-LuDwrtWZMLsKJDlyMkq5hTarVNzmbg"
         }
 
-    });
+    }, ((error, response, body) => {
+
+
+        if (body) {
+
+            console.log('response ', body, body['id']);
+            return change.after.ref.parent.update({ balance: admin.database.ServerValue.increment(amount) });
+
+        }
+    }));
+})
+
+
+exports.onlineStatus = functions.database.ref('Spaces/{spaceId}/online').onUpdate((change, context) => {
+    const value = change.after.val()
+    const time = Date.now().toString()
+    const firestoreDb = admin.firestore();
+    const currentUser = change.after.ref.parent.key
+
+    if (value === false) {
+        // const docRefçerence = firestoreDb.collection("Spaces").doc(currentUser).collection("words").doc(time);
+        // docRefçerence.set({ word: null, time: Date.now(), end: true })
+        console.log('updated', currentUser);
+    }
+
+})
 
 
 

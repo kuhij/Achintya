@@ -58,11 +58,11 @@ export default function Creation(props) {
           height: "100%",
         }}
       >
-            <Groups
-              spaceId={username}
-              creator={user_data.is_creator}
-            />
-         
+        <Groups
+          spaceId={user_data.is_creator ? username : user_data.active_space}
+          creator={user_data.is_creator}
+        />
+
       </View>
     </Swipeable>
   );

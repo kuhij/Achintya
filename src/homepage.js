@@ -31,6 +31,8 @@ import Loading from "./Loading";
 import Creation from './text/Creation';
 
 import { db, database, messaging } from './App'
+import Replay from "./text/replay";
+import TextBroadCast from "./text/groups";
 
 const { width, height } = Dimensions.get("window");
 
@@ -85,12 +87,8 @@ export default function HomePage({ name, email }) {
     const [auctionData, setAuctionData] = useState(null)
 
 
-
     useEffect(() => {
         //const random = Math.floor(Math.random() * 4999)
-        db.ref(`/Spaces/${name}/`).on("value", function (snap) {
-            setAmount(snap.val().balance)
-        })
 
         messaging
             .requestPermission()
@@ -101,17 +99,20 @@ export default function HomePage({ name, email }) {
             })
             .then((token) => {
                 console.log(token);
-                // dispatchAction(UPDATE_USER_DATA, {
-                //     data: {
-                //         token: token
-                //     },
-                // });
+                dispatchAction(UPDATE_USER_DATA, {
+                    data: {
+                        token: token
+                    },
+                });
                 database.collection("actions").doc(name).set({
                     subscription: name,
                     fcmtoken: token,
                     time: firebase.firestore.FieldValue.serverTimestamp()
                 })
             });
+        db.ref(`/Spaces/${name}/`).on("value", function (snap) {
+            setAmount(snap.val().balance)
+        })
     }, [])
 
     useEffect(() => {
@@ -144,7 +145,7 @@ export default function HomePage({ name, email }) {
             },
         }).then((value) => {
             const payId = "pay_" + Math.floor(Math.random() * 1000)
-            if (parseInt(value) < 100) {
+            if (parseInt(value) < 1) {
                 alert("Amount should be equal or more than 100")
             } else {
                 openCheckout(parseInt(value))
@@ -342,179 +343,44 @@ export default function HomePage({ name, email }) {
     }
 
     const goToRoom = () => {
-        history.push(`/${name}`)
-        dispatchAction(UPDATE_USER_DATA, {
+        if (amount <= 2) {
+            swal({
+                text: 'Low Balance! INR ' + amount,
+                icon: "info",
+                button: {
+                    text: "OK",
+                    closeModal: true,
+                },
+            })
+        } else {
+            history.push(`/${name}`)
+            dispatchAction(UPDATE_USER_DATA, {
+                data: {
+                    creator: true,
+                    is_creator: true,
+                    user_id: name,
+                    active_room_id: name,
+                },
+            });
+            setRoom(true)
+        }
+
+    }
+
+    const startBiding = async () => {
+
+        await db.ref(`/Spaces/${name}/`).update({
+            count: 1e6
+        })
+        await dispatchAction(UPDATE_USER_DATA, {
             data: {
-                creator: true,
-                is_creator: true,
-                user_id: name,
-                active_room_id: name,
+                joinedSpace: title,
+                active_space: name
             },
         });
-        setRoom(true)
+        history.push(`/${title}`)
     }
 
-    const startBiding = () => {
-        db.ref(`/auctions/0`).update({
-            title: title,
-            duration: parseInt(duration),
-            minPrice: parseInt(minVal),
-            startPrice: parseInt(startPrice),
-            status: 'open',
-            owner: name
-        })
-    }
-
-    const auctionCheckout = (amount) => {
-        let options = {
-            key: "rzp_live_1hWjIFVX8QIpW8",
-            amount: parseInt(amount) * 100,
-            name: "Achintya",
-            currency: "INR",
-            description: `Donation`,
-            image: "./favicon.png",
-            handler: async function (response) {
-                if (response.razorpay_payment_id) {
-                    await firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).set({
-                        paymentId: response.razorpay_payment_id,
-                        claimedAmount: parseInt(amount),
-                        wallet: [name, auctionData[0].owner],
-                        time: firebase.firestore.FieldValue.serverTimestamp()
-                    }).then(() => {
-                        firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).onSnapshot(async function (doc) {
-                            if (doc.data()) {
-                                if (doc.data().paidAmount) {
-                                    if (parseInt(doc.data().paidAmount.slice(0, -1)) === parseInt(amount) && doc.data().status === 1) {
-
-                                        await firebase
-                                            .database()
-                                            .ref(`/auction/0/participants/${name}`)
-                                            .update({
-                                                donation: firebase.database.ServerValue.increment(parseInt(doc.data().paidAmount.slice(0, -1))),
-                                            })
-                                            .then(() => {
-                                                swal({
-                                                    title:
-                                                        "Transaction Successful for INR " + amount,
-                                                    text:
-                                                        "Congatulations! Your donation is successfull. You can save your Transaction ID - " +
-                                                        response.razorpay_payment_id.replace("pay_", ""),
-                                                    icon: "success",
-                                                    button: "Join Auction",
-                                                    buttonColor: "#000",
-                                                }).then(() => {
-                                                    joinAuctionForm()
-                                                })
-                                            })
-                                    }
-                                }
-                            }
-                        })
-                    })
-                }
-            },
-            prefill: {
-                name: "",
-                email: "",
-            },
-            notes: {
-                address: "Hello World",
-            },
-            theme: {
-                color: "#000000",
-            },
-        }
-        let rzp = new window.Razorpay(options);
-        rzp.open();
-    }
-
-    const joinAuctionForm = () => {
-        swal({
-            text: 'Enter Biding Amount',
-            content: "input",
-            button: {
-                text: "Add",
-                closeModal: true,
-            },
-        }).then((value) => {
-            if (parseInt(value) < auctionData[0].minPrice + auctionData[0].startPrice) {
-                swal({
-                    text: `Bid value must be higher than current value by INR ${auctionData[0].minPrice}`,
-                    icon: "info",
-                    button: {
-                        text: "OK",
-                        closeModal: true,
-                    },
-                })
-            } else {
-                db.ref(`/auctions/0/participants/${name}`).update({
-                    bidingAmount: parseInt(value)
-                })
-                db.ref(`/auctions/0`).update({
-                    startPrice: firebase.database.ServerValue.increment(parseInt(value))
-                })
-            }
-        })
-    }
-
-    const joiAuction = () => {
-        swal({
-            text: 'Donate INR 1000 to eligible for donation.',
-            icon: 'info',
-            button: {
-                text: "Donate",
-                closeModal: true,
-            },
-        }).then(() => {
-            db.ref(`/auctions/0/participants/${name}/donation`).on("value", function (snap) {
-                if (snap.val()) {
-                    joinAuctionForm()
-                } else {
-                    auctionCheckout(1000)
-                }
-            })
-
-        })
-    }
-
-    useEffect(() => {
-        db.ref("/auctions/").limitToFirst(1).on("value", function (snap) {
-            db.ref("/auctions/0/participants/").orderByChild("bidingAmount").limitToLast(1).on("child_added", function (child) {
-                if (child.val()) {
-                    console.log(child.val(), child.key);
-                    high.name = child.key
-                    high.amount = child.val().bidingAmount
-                } else {
-                    return null;
-                }
-
-            })
-            console.log(snap.val());
-            setAuctionData(snap.val())
-        })
-    }, [])
-
-    useEffect(() => {
-        const date = new Date()
-        let hours;
-        if (auctionData !== null) {
-            let days = auctionData[0].duration
-            let seconds = days * 24 * 60 * 60 - date.getSeconds()
-            const timer = setInterval(() => {
-                seconds = seconds - 1
-                //hours
-                hours = Math.floor(seconds / 60 / 60)
-                if (hours === 0) {
-                    db.ref(`/auctions/0/`).update({
-                        status: 'closed'
-                    })
-                    clearInterval(timer)
-                }
-                //console.log(hours);
-            }, 1000);
-
-        }
-    }, [auctionData])
 
     const onSwiping = ({ dir }) => {
         if (dir === UP) {
@@ -596,41 +462,41 @@ export default function HomePage({ name, email }) {
 
                             </View>
                             : showCamp === true && paymentPage === false ?
-                                <View style={{ padding: '30px', width: '50%', margin: 'auto', border: '1px solid', marginTop: '15%' }}>
+                                <View style={{ padding: '30px', width: '50%', margin: 'auto', marginTop: '15%' }}>
                                     <TextField
                                         id="standard-text"
-                                        label="Title"
+                                        label="Creator's name"
                                         type="text"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
                                     />
                                     <br />
-                                    <TextField
-                                        id="standard-number"
-                                        label="Min. Inc."
-                                        type="number"
-                                        value={minVal}
-                                        onChange={(e) => setMinVal(e.target.value)}
-                                    />
-                                    <br />
-                                    <TextField
-                                        id="standard-number"
-                                        label="Biding Duration"
-                                        type="number"
-                                        value={duration}
-                                        onChange={(e) => setDuration(e.target.value)}
-                                    />
-                                    <br />
-                                    <TextField
-                                        id="standard-number"
-                                        label="Start Price"
-                                        type="number"
-                                        value={startPrice}
-                                        onChange={(e) => setStartPrice(e.target.value)}
-                                    />
+                                    {/* <TextField
+                                            id="standard-number"
+                                            label="Min. Inc."
+                                            type="number"
+                                            value={minVal}
+                                            onChange={(e) => setMinVal(e.target.value)}
+                                        />
+                                        <br /> */}
+                                    {/* <TextField
+                                            id="standard-number"
+                                            label="Biding Duration"
+                                            type="number"
+                                            value={duration}
+                                            onChange={(e) => setDuration(e.target.value)}
+                                        />
+                                        <br />
+                                        <TextField
+                                            id="standard-number"
+                                            label="Start Price"
+                                            type="number"
+                                            value={startPrice}
+                                            onChange={(e) => setStartPrice(e.target.value)}
+                                        /> */}
                                     <br />
                                     <Button variant="contained" color="primary" onClick={startBiding}>
-                                        Primary
+                                        Enter
                                     </Button>
                                 </View>
                                 :
@@ -702,4 +568,60 @@ export default function HomePage({ name, email }) {
                 </Swipeable>
             )
 
-} 
+}
+
+
+
+/*firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).onSnapshot(async function (doc) {
+              if (doc.data()) {
+
+                if (doc.data().paidAmount) {
+                  if (parseInt(doc.data().paidAmount) === (parseInt(amount) / 100) && doc.data().status === 1) {
+
+                    swal({
+                      title: "Transaction Successful for INR " + amount / 100,
+                      text: "You will be contacted shortly for verification. You can save your Transaction ID - " + response.razorpay_payment_id.replace('pay_', ''),
+                      icon: "success",
+                      button: "proceed",
+                      buttonColor: '#000',
+                    }).then(() => {
+                      swal({
+                        text: 'Enter username',
+                        content: "input",
+                        button: {
+                          text: "Proceed",
+                          closeModal: true,
+                        },
+                      }).then((value) => {
+
+                        self.setState({ name: value })
+                        firebase.firestore().collection("transactions").doc(response.razorpay_payment_id).onSnapshot(async function (doc) {
+                          if (doc.data().paymentId === response.razorpay_payment_id) {
+                            swal({
+                              title: "Successfully matched",
+                              text: `You can save your password:- ${doc.data().paymentId.replace('pay_', '')} for logging again.`,
+                              icon: "success",
+                              button: "Okay",
+                              buttonColor: '#000',
+                            }).then(() => {
+                              self.setState({ renderProfile: true, amount: doc.data().paidAmount })
+                            })
+                            firebase.database().ref(`/Users/${value}/`).update({
+                              balance: parseInt(doc.data().paidAmount)
+                            })
+
+                          } else {
+                            swal({
+                              title: 'Invalid transaction ID',
+                              icon: "error",
+                              button: {
+                                text: "okay!",
+                                closeModal: true,
+                              },
+                            })
+                          }
+
+                        })
+                      })
+                    })
+*/

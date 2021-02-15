@@ -41,7 +41,7 @@ export default function Donation(props) {
             "amount": amount,
             "name": "Donation",
             "currency": 'INR',
-            "description": `${props.receiver}`,
+            "description": username,
             "image": "./favicon.png",
             "handler": async function (response) {
                 console.log(response)
@@ -50,7 +50,9 @@ export default function Donation(props) {
 
                     await database.collection("transactions").doc(response.razorpay_payment_id).set({
                         paymentId: response.razorpay_payment_id,
-                        claimedAmount: amount
+                        claimedAmount: amount,
+                        wallet: [props.spaceId, username],
+                        time: firebase.firestore.FieldValue.serverTimestamp()
                     }).then(() => {
                         database.collection("transactions").doc(response.razorpay_payment_id).onSnapshot(async function (doc) {
                             if (doc.data()) {

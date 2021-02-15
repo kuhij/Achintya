@@ -115,31 +115,31 @@ exports.sendNotificationsToTopic = functions.firestore.document('Users/{userId}/
 
 //     });
 
-exports.paypalTransactions = functions.database.ref('accounts/{username}/paypal').onWrite((change, context) => {
+// exports.paypalTransactions = functions.database.ref('accounts/{username}/paypal').onWrite((change, context) => {
 
-    const captureId = change.after.val().paypalCaptureId
-    const currency = change.after.val().currency
-    const amount = change.after.val().amount
-
-
-    return request({
-        method: 'GET',
-        url: `https://api-m.paypal.com/v2/payments/captures/${captureId}`,
-        headers: {
-            Authorization: "Bearer A21AAN0Z6e4gLaAkb9ohHwDAc8pBWD8WZsk8gZfg0z0RIrQS4AhabtxHW3u2Ehjz0U-LuDwrtWZMLsKJDlyMkq5hTarVNzmbg"
-        }
-
-    }, ((error, response, body) => {
+//     const captureId = change.after.val().paypalCaptureId
+//     const currency = change.after.val().currency
+//     const amount = change.after.val().amount
 
 
-        if (body) {
+//     return request({
+//         method: 'GET',
+//         url: `https://api-m.paypal.com/v2/payments/captures/${captureId}`,
+//         headers: {
+//             Authorization: "Bearer A21AAN0Z6e4gLaAkb9ohHwDAc8pBWD8WZsk8gZfg0z0RIrQS4AhabtxHW3u2Ehjz0U-LuDwrtWZMLsKJDlyMkq5hTarVNzmbg"
+//         }
 
-            console.log('response ', body, body['id']);
-            return change.after.ref.parent.update({ balance: admin.database.ServerValue.increment(amount) });
+//     }, ((error, response, body) => {
 
-        }
-    }));
-})
+
+//         if (body) {
+
+//             console.log('response ', body, body['id']);
+//             return change.after.ref.parent.update({ balance: admin.database.ServerValue.increment(amount) });
+
+//         }
+//     }));
+// })
 
 
 exports.onlineStatus = functions.database.ref('Spaces/{spaceId}/online').onUpdate((change, context) => {
@@ -174,7 +174,6 @@ exports.transaction = functions.firestore.document('transactions/{transactionId}
         const paidValue = await change.after.data().paidAmount
 
         const id = await change.after.data().paymentId
-
 
 
         console.log('newValue ', newValue);

@@ -1,0 +1,2 @@
+export const SET_KEYS_TRUE = "SET_KEYS_TRUE";
+export const UPDATE_USER_DATA = "UPDATE_USER_DATA";

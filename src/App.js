@@ -1,4 +1,7 @@
+import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
+
 import Login from './components/login'
+import Spaces from './components/spaces'
 
 import firebase from "./config";
 import 'antd/dist/antd.css';
@@ -6,7 +9,16 @@ import 'antd/dist/antd.css';
 function App() {
   return (
     <div>
-      <Login />
+      <Router>
+        <Switch>
+          <Route exact path="/">
+            <Login />
+          </Route>
+          <Route exact path="/space/:spaceId">
+            <Spaces />
+          </Route>
+        </Switch>
+      </Router>
     </div>
   );
 }

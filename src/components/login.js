@@ -4,12 +4,15 @@ import { Dimensions, View, Image, Text, } from "react-native";
 import { notification, Button, Input } from 'antd';
 
 import firebase from "firebase";
+import { Redirect, useHistory } from "react-router-dom";
 import { UserOutlined } from '@ant-design/icons';
+import Spaces from "./spaces";
 
 const { width, height } = Dimensions.get("window");
 
 
 export default function Login(params) {
+    const history = useHistory();
 
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
@@ -65,6 +68,7 @@ export default function Login(params) {
             })
 
             setRedirect(true)
+            history.push(`/space/${spaceName}`);
         } else {
             openNotification('bottomLeft', "spacename exists! Please select another one.")
         }
@@ -101,6 +105,7 @@ export default function Login(params) {
             setRedirect(true)
             firebase.database().ref(`/Users/${username}/mySpace`).once("value", function (snap) {
                 setSpaceName(snap.val())
+                history.push(`/space/${snap.val()}`);
             })
 
 
@@ -114,7 +119,7 @@ export default function Login(params) {
 
 
 
-    return (
+    return redirect ? <Redirect push to={`/space/${spaceName}`} /> : (
         <View style={{ height: height, width: width, overflow: 'hidden' }}>
             <img
                 src="../favicon.png"

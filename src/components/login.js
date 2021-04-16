@@ -140,6 +140,7 @@ export default function Login(params) {
                     <Input
                         id="standard-password"
                         label="password"
+                        type="text"
                         prefix={<UserOutlined />}
                         type="password"
                         placeholder="enter password"

@@ -2,14 +2,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Dimensions, View, TextInput, Text } from "react-native";
 
-import { notification, Button, Input } from 'antd';
+import { notification, Button, Input, Tooltip } from 'antd';
 
 import firebase from "firebase";
 
 import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
+import AccountCircleIcon from '@material-ui/icons/AccountCircle';
+import AddToHomeScreenIcon from '@material-ui/icons/AddToHomeScreen';
+import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable";
 
-import { useParams, useHistory } from "react-router-dom";
+import { useParams, useHistory, Redirect } from "react-router-dom";
 import Login from "./login";
 const { width, height } = Dimensions.get("window");
 
@@ -37,6 +40,8 @@ export default function TopCreators(params) {
     const [mySpace, setMySpace] = useState("")
     const [currentS, setCurrentS] = useState("")
 
+    const [toSpace, setToSpace] = useState(false)
+
     const textInputRef = useRef();
 
     const openNotification = (placement, message) => {
@@ -46,6 +51,114 @@ export default function TopCreators(params) {
                 `${message}`,
             placement
         });
+    };
+
+    const writer = (creatorId) => {
+        const path = firebase.database().ref(`/Spaces/${creatorId}/writer`)
+        writerFunction(path)
+    }
+
+    const writerFunction = (ref) => {
+        ref.on("value", (snapshot) => {
+
+            setTurn(snapshot.val())
+        });
+    }
+
+    //fetching current data from rtdb -- text
+    const keyPressFunction = (ref) => {
+        ref.on("value", async function (snapshot) {
+
+            if (snapshot.val()) {
+
+                if (snapshot.val() === null) {
+                    return null;
+                } else {
+                    const current = snapshot.val();
+                    console.log(current);
+
+                    setState((e) => ({
+                        ...e,
+                        value: current,
+                    }));
+
+                }
+            }
+        });
+    };
+
+    const spaceOwnerData = async (creatorId) => {
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) {
+                //loggedIn user
+                const name1 = user.email.replace('@achintya.org', '')
+                console.log(creatorId);
+                setName(name1)
+                firebase.database().ref(`/Users/${name1}/`).once("value", function (snap) {
+                    setCurrentS(snap.val().currentSpace)
+                    setMySpace(snap.val().mySpace)
+
+                    firebase.database().ref(`/Users/${name1}/`).update({
+                        currentSpace: creatorId
+                    })
+
+                    firebase.database().ref(`/Users/${name1}/`).onDisconnect().update({
+                        currentSpace: snap.val().mySpace
+                    })
+
+                })
+
+                console.log('current user ', user);
+                setLoggedIn(true)
+                firebase.database().ref(`/Spaces/${creatorId}/`).update({
+                    count: firebase.database.ServerValue.increment(1),
+                })
+            } else {
+                setLoggedIn(false)
+                setName(guestId)
+                console.log('not logged in');
+                firebase.database().ref(`/Spaces/${creatorId}/`).update({
+                    count: firebase.database.ServerValue.increment(1),
+                })
+            }
+        });
+
+
+        // firebase.database().ref(`/Spaces/${creatorId}/`).update({
+        //     count: firebase.database.ServerValue.increment(1),
+        // })
+
+        firebase.database().ref(`/Spaces/${creatorId}/`).onDisconnect().update({
+            count: firebase.database.ServerValue.increment(-1)
+        });
+
+        listening(creatorId);
+        writer(creatorId)
+    };
+
+    useEffect(() => {
+        if (currentSpace) {
+            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().update({
+                count: firebase.database.ServerValue.increment(-1)
+            });
+
+            firebase.database().ref(`/Spaces/${currentSpace}/online`).on("value", function (snap) {
+                setOnline(snap.val())
+            })
+        }
+
+    }, [currentSpace])
+
+    const fetchUpdate = (creatorId) => {
+
+        spaceOwnerData(creatorId);
+
+    };
+
+
+    const listening = (creatorId) => {
+        let docRef = firebase.database().ref(`/Spaces/${creatorId}/data/word`);
+        keyPressFunction(docRef);
     };
 
 
@@ -189,125 +302,12 @@ export default function TopCreators(params) {
 
     }
 
-    const writer = (creatorId) => {
-        const path = firebase.database().ref(`/Spaces/${creatorId}/writer`)
-        writerFunction(path)
-    }
-
-    const writerFunction = (ref) => {
-        ref.on("value", (snapshot) => {
-
-            setTurn(snapshot.val())
-        });
-    }
-
-    //fetching current data from rtdb -- text
-    const keyPressFunction = (ref) => {
-        ref.on("value", async function (snapshot) {
-
-            if (snapshot.val()) {
-
-                if (snapshot.val() === null) {
-                    return null;
-                } else {
-                    const current = snapshot.val();
-                    console.log(current);
-
-                    setState((e) => ({
-                        ...e,
-                        value: current,
-                    }));
-
-                }
-            }
-        });
-    };
-
-    const spaceOwnerData = async (creatorId) => {
-        firebase.auth().onAuthStateChanged(function (user) {
-            if (user) {
-                //loggedIn user
-                const name1 = user.email.replace('@achintya.org', '')
-                console.log(creatorId);
-                setName(name1)
-                firebase.database().ref(`/Users/${name1}/`).once("value", function (snap) {
-                    setCurrentS(snap.val().currentSpace)
-                    setMySpace(snap.val().mySpace)
-
-                    firebase.database().ref(`/Users/${name1}/`).update({
-                        currentSpace: creatorId
-                    })
-
-                    firebase.database().ref(`/Users/${name1}/`).onDisconnect().update({
-                        currentSpace: snap.val().mySpace
-                    })
-
-                })
-
-                console.log('current user ', user);
-                setLoggedIn(true)
-                firebase.database().ref(`/Spaces/${creatorId}/`).update({
-                    count: firebase.database.ServerValue.increment(1),
-                })
-            } else {
-                setLoggedIn(false)
-                setName(guestId)
-                console.log('not logged in');
-                firebase.database().ref(`/Spaces/${creatorId}/`).update({
-                    count: firebase.database.ServerValue.increment(1),
-                })
-            }
-        });
-
-
-        // firebase.database().ref(`/Spaces/${creatorId}/`).update({
-        //     count: firebase.database.ServerValue.increment(1),
-        // })
-
-        firebase.database().ref(`/Spaces/${creatorId}/`).onDisconnect().update({
-            count: firebase.database.ServerValue.increment(-1)
-        });
-
-        // firebase.database().ref(`/Spaces/${creatorId}/count`).once("value", function (snap) {
-        //     firebase.database().ref(`/Spaces/${creatorId}/`).update({
-        //         count: snap.val() + 1,
-        //     })
-        // })
-
-        listening(creatorId);
-        writer(creatorId)
-    };
-
-    useEffect(() => {
-        if (currentSpace) {
-            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().update({
-                count: firebase.database.ServerValue.increment(-1)
-            });
-
-            firebase.database().ref(`/Spaces/${currentSpace}/online`).on("value", function (snap) {
-                setOnline(snap.val())
-            })
-        }
-
-    }, [currentSpace])
-
-    const fetchUpdate = (creatorId) => {
-
-        spaceOwnerData(creatorId);
-
-    };
-
-
-    const listening = (creatorId) => {
-        let docRef = firebase.database().ref(`/Spaces/${creatorId}/data/word`);
-        keyPressFunction(docRef);
-    };
 
     const nextCard = async () => {
         counter = counter + 1
 
         let linksRef = firebase.database().ref('/Spaces/');
-
+        console.log(currentSpace, array, counter);
         if (array.length - counter <= 2) {
 
             await linksRef.orderByChild('count').endAt(values[values.length - 1].count - 1).limitToLast(1).once("value", async function (snapshot) {
@@ -345,7 +345,6 @@ export default function TopCreators(params) {
                 }
             })
         }
-        console.log(counter, values, array);
 
         if (counter >= array.length) {
             openNotification('bottomLeft', "no more creations.")
@@ -363,26 +362,52 @@ export default function TopCreators(params) {
 
             setCurrentSpace(array[counter])
             fetchUpdate(array[counter])
-            console.log(array);
+
             // nextData(array[counter])
         }
 
     }
 
     const onDown = () => {
+
+        counter = counter - 1
+        if (array[counter]) {
+            setState((e) => ({
+                ...e,
+                value: "",
+            }));
+            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
+            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+                count: firebase.database.ServerValue.increment(-1)
+            })
+
+            setCurrentSpace(array[counter])
+            fetchUpdate(array[counter])
+        } else {
+            counter = counter + 1
+        }
+        console.log(currentSpace, array, counter);
+        //setRedirect(true)
+
+    }
+
+    const goToLogin = () => {
         if (currentSpace) {
             firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
             firebase.database().ref(`/Spaces/${currentSpace}/`).update({
                 count: firebase.database.ServerValue.increment(-1)
             })
+            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
         }
 
         setRedirect(true)
-
     }
 
     const onUP = () => {
-        console.log(currentSpace);
+
 
         firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
         if (currentSpace) {
@@ -398,70 +423,138 @@ export default function TopCreators(params) {
         nextCard()
     }
 
+    const goToSpace = () => {
+        if (currentSpace) {
+            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
+            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+                count: firebase.database.ServerValue.increment(-1)
+            })
+            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+        }
+        setToSpace(true)
+    }
+
+    const onSwiping = ({ dir }) => {
+        if (dir === UP) {
+            onUP()
+
+        }
+
+        if (dir === DOWN) {
+
+            onDown()
+
+        }
+
+    }
 
 
-    return redirect ? <Login /> : (
-        <View >
-            <View
-                style={{
-                    shadowOpacity: 4,
-                    width: width,
-                    overflow: 'hidden',
-                    height: height * 0.91,
-                    marginTop: '18px',
-                    zIndex: 99999,
+    return redirect ? <Login /> : toSpace ? <Redirect push to={`/space/${mySpace}`} /> : (
+        <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true}>
+            {array ?
+                <View >
 
-                }}
-                onClick={turn === name && online ? autoFocus : null}
-            >
-                <View>
-                    <Text style={{ textAlign: 'center', fontWeight: 600, fontFamily: 'cursive', marginBottom: 8 }}>{turn}</Text>
-
-                    <View style={{ height: 1, background: 'black', marginBottom: 12 }}></View>
-                    <Text
+                    <View
                         style={{
-                            marginLeft: '10px',
-                            fontSize: 15.5,
-                            paddingRight: '18px',
-                            overscrollBehaviorY: "contain",
-                            scrollSnapType: "y proximity",
-                            scrollSnapAlign: "end",
+                            shadowOpacity: 4,
+                            width: width,
+                            overflow: 'hidden',
+                            height: height * 0.91,
+                            marginTop: '18px',
+                            zIndex: 99999,
 
                         }}
+                        onClick={turn === name && online ? autoFocus : null}
                     >
+                        <View>
+                            <Text style={{ textAlign: 'center', fontFamily: 'cursive', marginBottom: 8 }}><b>{array[counter] ? array[counter] : array[array.length - 1]}:</b> {turn}</Text>
 
-                        <View style={{ display: 'flex', flexFlow: 'row' }}>
+                            <View style={{ height: 1, background: 'black', marginBottom: 12 }}></View>
+                            <Text
+                                style={{
+                                    marginLeft: '10px',
+                                    fontSize: 15.5,
+                                    paddingRight: '18px',
+                                    overscrollBehaviorY: "contain",
+                                    scrollSnapType: "y proximity",
+                                    scrollSnapAlign: "end",
 
-                            <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / state.value.length + state.value.length) : (state.value.length === 2 ? height / 1.8 : (state.value.length) + height / (state.value.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{state.value}</Text>
+                                }}
+                            >
+
+                                <View style={{ display: 'flex', flexFlow: 'row' }}>
+
+                                    <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / state.value.length + state.value.length) : (state.value.length === 2 ? height / 1.8 : (state.value.length) + height / (state.value.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{state.value}</Text>
+
+                                </View>
+
+                            </Text>
 
                         </View>
 
-                    </Text>
+                        <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.5, position: 'absolute', marginLeft: width - 45 }}>
+                            {counter !== 0 ?
 
-                </View>
+                                <>
+                                    <Tooltip title="previous">
+                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onDown}>
+                                            <KeyboardArrowUpIcon style={{ margin: 'auto' }} />
+                                        </View>
+                                    </Tooltip>
+                                    <br />
+                                </>
 
-                <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.6, position: 'absolute', marginLeft: width - 45 }}>
-                    <>
-                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onDown}>
-                            <KeyboardArrowUpIcon style={{ margin: 'auto' }} />
+                                : null}
+                            {counter < array.length ?
+
+                                <>
+                                    <Tooltip title="next">
+                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onUP}>
+                                            <KeyboardArrowDownIcon style={{ margin: 'auto' }} />
+
+                                        </View>
+                                    </Tooltip>
+                                    <br />
+                                </>
+
+                                : null}
+                            {!loggedIn ?
+
+                                <>
+                                    <Tooltip title="login">
+                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={goToLogin}>
+                                            <AccountCircleIcon style={{ margin: 'auto' }} />
+                                        </View>
+                                    </Tooltip>
+                                    <br />
+                                </>
+
+                                :
+
+                                <>
+                                    <Tooltip title="my space">
+                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={goToSpace}>
+                                            <AddToHomeScreenIcon style={{ margin: 'auto' }} />
+                                        </View>
+                                    </Tooltip>
+                                    <br />
+                                </>
+
+                            }
                         </View>
-                        <br />
-                    </>
 
-
-                    <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onUP}>
-                        <KeyboardArrowDownIcon style={{ margin: 'auto' }} />
                     </View>
-                </View>
+                    {turn === name && online ?
+                        <View style={{ marginTop: height - 40, position: 'absolute', }}>
+                            <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: width, height: width < 600 ? 40 : 37 }} ref={textInputRef} editable={true} />
 
-            </View>
-            {turn === name && online ?
-                <View style={{ marginTop: height - 40, position: 'absolute', }}>
-                    <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: width, height: width < 600 ? 40 : 37 }} ref={textInputRef} editable={true} />
+                        </View>
+                        : null}
+            :
 
-                </View>
-                : null}
         </View>
-
+                : null}
+        </Swipeable>
     )
 }

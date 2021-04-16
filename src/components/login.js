@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Dimensions, View, Image, Text, } from "react-native";
 
-import { notification, Button, Input } from 'antd';
+import { notification, Button, Input, Tooltip } from 'antd';
 
 import firebase from "firebase";
 import { Redirect, useHistory } from "react-router-dom";
 import { UserOutlined } from '@ant-design/icons';
+import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import Spaces from "./spaces";
+import TopCreators from "./topcreators";
 
 const { width, height } = Dimensions.get("window");
 
@@ -22,6 +24,7 @@ export default function Login(params) {
     const [select, setSelect] = useState(false)
     const [spaceName, setSpaceName] = useState("")
     const [available, setAvailable] = useState(false)
+    const [showTop, setShowTop] = useState(false)
 
     const [userPwd, setUserPwd] = useState("")
 
@@ -119,7 +122,7 @@ export default function Login(params) {
 
 
 
-    return redirect ? <Redirect push to={`/space/${spaceName}`} /> : (
+    return redirect ? <Redirect push to={`/space/${spaceName}`} /> : showTop ? <TopCreators /> : (
         <View style={{ height: height, width: width, overflow: 'hidden' }}>
             <img
                 src="../favicon.png"
@@ -129,38 +132,55 @@ export default function Login(params) {
             />
 
             {!select ?
-                <View style={{ display: 'flex', flexFlow: 'column', width: height / 3, marginTop: height / 2.8, marginLeft: width <= 600 ? '22%' : '42%' }}>
-                    <Input
-                        id="standard-text"
-                        label="username"
-                        type="text"
-                        placeholder="enter username"
-                        prefix={<UserOutlined />}
-                        style={{ height: 40, width: height / 3, fontSize: 14 }}
-                        value={username}
-                        onChange={handleUsername}
-                    />
+                <>
+                    <View style={{ display: 'flex', flexFlow: 'column', width: height / 3, marginTop: height / 2.8, marginLeft: width <= 600 ? '22%' : '42%' }}>
+                        <Input
+                            id="standard-text"
+                            label="username"
+                            type="text"
+                            placeholder="enter username"
+                            prefix={<UserOutlined />}
+                            style={{ height: 40, width: height / 3, fontSize: 14 }}
+                            value={username}
+                            onChange={handleUsername}
+                        />
 
-                    <br />
-                    <Input
-                        id="standard-password"
-                        label="password"
-                        type="text"
-                        prefix={<UserOutlined />}
-                        type="password"
-                        placeholder="enter password"
-                        style={{ height: 40, width: height / 3, fontSize: 14 }}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <br />
-                    <Button style={{ width: height / 3, height: 40 }} onClick={exist ? login : signUp}>
-                        {exist ? "LogIn" : "SignUp"}
-                    </Button>
-                    <br />
+                        <br />
+                        <Input
+                            id="standard-password"
+                            label="password"
+                            type="text"
+                            prefix={<UserOutlined />}
+                            type="password"
+                            placeholder="enter password"
+                            style={{ height: 40, width: height / 3, fontSize: 14 }}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <br />
+                        <Button style={{ width: height / 3, height: 40 }} onClick={exist ? login : signUp}>
+                            {exist ? "LogIn" : "SignUp"}
+                        </Button>
+                        <br />
 
 
-                </View >
+                    </View >
+                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.3, position: 'absolute', marginLeft: width - 45 }}>
+                        {!showTop ?
+
+                            <>
+                                <Tooltip title="top-creators">
+                                    <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={() => setShowTop(true)}>
+                                        <KeyboardArrowDownIcon style={{ margin: 'auto' }} />
+
+                                    </View>
+                                </Tooltip>
+                                <br />
+                            </>
+
+                            : null}
+                    </View>
+                </>
                 :
                 <View style={{ display: 'flex', flexFlow: 'column', width: height / 3, marginTop: height / 2.8, marginLeft: width <= 600 ? '22%' : '42%' }}>
                     <Input

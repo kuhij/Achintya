@@ -7,6 +7,9 @@ import TextPage from './text';
 
 
 import firebase from "firebase";
+import KeyboardArrowRightIcon from '@material-ui/icons/KeyboardArrowRight';
+import KeyboardArrowLeftIcon from '@material-ui/icons/KeyboardArrowLeft';
+import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
 import { useParams, useHistory } from "react-router-dom";
 const { width, height } = Dimensions.get("window");
@@ -74,23 +77,11 @@ export default function Spaces() {
                 } else {
                     const current = snapshot.val();
                     console.log(current);
+                    setState((e) => ({
+                        ...e,
+                        value: current,
+                    }));
 
-                    if (current === "Backspace") {
-                        setState((e) => ({
-                            ...e,
-                            value: e.value.slice(0, -1),
-                        }));
-                    } else if (current === "Enter") {
-                        setState((e) => ({
-                            ...e,
-                            value: "\n",
-                        }));
-                    } else {
-                        setState((e) => ({
-                            ...e,
-                            value: current,
-                        }));
-                    }
                 }
             }
         });
@@ -107,6 +98,7 @@ export default function Spaces() {
     };
 
     const spaceOwnerData = async () => {
+        const time = Date.now()
         firebase.auth().onAuthStateChanged(function (user) {
             if (user) {
                 setLoggedIn(true)
@@ -119,9 +111,6 @@ export default function Spaces() {
 
                     if (spaceId === snap.val().mySpace) {
                         setCreator(true)
-                        firebase.database().ref(`/Spaces/${snap.val().mySpace}/data`).update({
-                            word: ""
-                        })
 
                         firebase.database().ref(`/Spaces/${snap.val().mySpace}/`).update({
                             online: true,
@@ -129,6 +118,15 @@ export default function Spaces() {
                             writer: name1,
                             time: firebase.database.ServerValue.TIMESTAMP,
                         })
+
+                        firebase.database().ref(`/Spaces/${snap.val().mySpace}/data`).update({
+                            word: ""
+                        })
+
+                        // firebase.firestore().collection("Spaces").doc(snap.val().mySpace).collection("Timeline").doc(time.toString()).set({
+                        //     username: name1,
+                        //     entry: time
+                        // })
 
                         firebase.database().ref(`/Users/${name1}/`).onDisconnect().update({
                             currentSpace: snap.val().mySpace
@@ -144,9 +142,11 @@ export default function Spaces() {
                             time: firebase.database.ServerValue.TIMESTAMP,
                         });
                     }
+
                 })
 
-
+                listening();
+                writer()
 
             } else {
                 setName(guestId)
@@ -155,12 +155,12 @@ export default function Spaces() {
             }
         });
 
-        listening();
-        writer()
+
     };
 
     useEffect(() => {
-        if (spaceId) {
+        const time = Date.now()
+        if (spaceId && loggedIn) {
             firebase.database().ref(`/Spaces/${spaceId}/`).update({
                 count: firebase.database.ServerValue.increment(1),
             })
@@ -168,72 +168,19 @@ export default function Spaces() {
             firebase.database().ref(`/Spaces/${spaceId}/`).onDisconnect().update({
                 count: firebase.database.ServerValue.increment(-1)
             });
+
             firebase.database().ref(`/Spaces/${spaceId}/online`).on("value", function (snap) {
                 setOnline(snap.val())
             })
         }
 
-    }, [spaceId])
+    }, [spaceId, loggedIn])
 
 
     useEffect(() => {
         spaceOwnerData();
     }, []);
 
-    const handleClickOpenJoinModal = () => {
-        setOpenJoinModal(true);
-    };
-
-    const handleCloseJoinModal = () => {
-        setOpenJoinModal(false);
-    };
-
-    const joinStream = async () => {
-        setState((e) => ({
-            ...e,
-            value: "",
-        }));
-        setCreator(false)
-        firebase.database().ref(`/Users/${name}/currentSpace`).once("value", function (snap) {
-            var space = snap.val()
-            firebase.database().ref(`/Spaces/${space}/`).update({
-                count: firebase.database.ServerValue.increment(-1),
-            })
-        })
-        firebase.database().ref(`/Spaces/${spaceId}/`).onDisconnect().cancel()
-        if (spaceId === mySpace) {
-            firebase.database().ref(`/Spaces/${spaceId}/`).update({
-                online: false,
-                time: firebase.database.ServerValue.TIMESTAMP,
-            })
-
-        }
-
-        if (anotherCreatorId === mySpace) {
-            firebase.database().ref(`/Spaces/${spaceId}/`).update({
-                online: true,
-                time: firebase.database.ServerValue.TIMESTAMP,
-            })
-        }
-        firebase.database().ref(`/Users/${name}/`).update({
-            currentSpace: anotherCreatorId,
-        })
-
-        firebase.database().ref(`/Spaces/${anotherCreatorId}/`).update({
-            count: firebase.database.ServerValue.increment(1)
-        })
-
-        firebase.database().ref(`/Spaces/${spaceId}/data/word`).off()
-        const currentSpace = firebase.database().ref(`/Spaces/${anotherCreatorId}/data/word`)
-
-        firebase.database().ref(`/Spaces/${spaceId}/writer`).off()
-        const currentTurn = firebase.database().ref(`/Spaces/${anotherCreatorId}/writer`)
-
-        keyPressFunction(currentSpace)
-        writerFunction(currentTurn)
-        handleCloseJoinModal();
-        history.push(`/space/${anotherCreatorId}`);
-    };
 
     //taking turn on KEY ENTER
     useEffect(() => {
@@ -264,44 +211,6 @@ export default function Spaces() {
         };
     }, [name, turn])
 
-    const forward = () => {
-        counter = counter + 1
-        if (counter === 1) {
-
-            setShowYoutube(true)
-
-            setShowCall(true)
-
-
-            setShowText(false)
-        } else if (counter === 2 || counter > 2) {
-
-            setShowVideo(true)
-            setShowYoutube(false)
-            setShowText(false)
-
-        }
-
-    }
-
-    const back = () => {
-        counter = counter - 1
-        if (counter === 1) {
-
-            setShowYoutube(true)
-
-            setShowCall(true)
-
-
-            setShowText(false)
-        } else if (counter === 0 || counter < 0) {
-            setShowVideo(false)
-            setShowYoutube(false)
-            setShowText(true)
-        }
-
-    }
-
 
 
 
@@ -312,14 +221,38 @@ export default function Spaces() {
         >
 
 
-            {showText ?
+            {showText && loggedIn ?
                 <View>
                     <TextPage currentData={state.value} turn={turn} myName={name} spaceId={spaceId} />
+                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.6, position: 'absolute', marginLeft: width - 45 }}>
+
+                        {/* <>
+                            <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={forward}>
+                                <KeyboardArrowRightIcon style={{ margin: 'auto' }} />
+                            </View>
+                            <br />
+                        </>
+
+                        <>
+                            <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={backward}>
+                                <KeyboardArrowLeftIcon style={{ margin: 'auto' }} />
+                            </View>
+                            <br />
+                        </> */}
+
+                    </View>
                 </View>
-                : null}
+                : <h3>Please login to join.</h3>}
 
 
         </View>
 
     )
 }
+
+// else {
+                    //     firebase.firestore().collection("Spaces").doc(spaceId).collection("Timeline").doc(time.toString()).update({
+                    //         username: name1,
+                    //         entry: time
+                    //     })
+                    // }

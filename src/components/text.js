@@ -2,9 +2,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Dimensions, View, Text, TextInput } from "react-native";
 
-import { notification, Button, Input } from 'antd';
+import { notification, Button, Input, Tooltip } from 'antd';
 
 import firebase from "firebase";
+import {
+    CopyOutlined
+} from '@ant-design/icons';
+
+
 
 import { useParams, useHistory } from "react-router-dom";
 const { width, height } = Dimensions.get("window");
@@ -14,6 +19,10 @@ export default function TextPage({ currentData, turn, myName }) {
     const [word, setWord] = useState("")
 
     const textInputRef = useRef();
+
+    useEffect(() => {
+
+    }, [])
 
 
     //sending letter by letter to rtdb.
@@ -51,11 +60,17 @@ export default function TextPage({ currentData, turn, myName }) {
 
     const handleInputMobile = (e) => {
         setWord(e.target.value)
+        const time = Date.now()
         var space = e.target.value.charAt(e.target.value.length - 1)
 
         // console.log(e.target.value, space);
         if (space == " ") {
             let wrd = word
+            firebase.firestore().collection("Spaces").doc(spaceId).collection("Timeline").doc(time.toString()).set({
+                username: myName,
+                word: wrd,
+                time: time
+            })
             firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: wrd })
                 .then(() => {
                     textInputRef.current.focus();
@@ -119,28 +134,17 @@ export default function TextPage({ currentData, turn, myName }) {
 
             </View>
             {turn === myName ?
-                // <TextInput
-                //     name="usertext"
-                //     multiline={true}
-                //     numberOfLines={1}
-                //     style={{
-                //         color: "#888888",
-                //     }}
-                //     id="standard-multiline-flexible"
-                //     style={{ width: '100%', height: 30 }}
-                //     value=""
-                //     onKeyPress={handleInput}
-                //     editable={true}
-                //     ref={textInputRef}
-                // />
-                <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: '100%', height: width < 600 ? 40 : 37, position: 'absolute', marginTop: height - 40 }} ref={textInputRef} editable={true} />
+
+                <View style={{ marginTop: height - 40, position: 'absolute', }}>
+                    <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: width, height: width < 600 ? 40 : 37 }} ref={textInputRef} editable={true} />
+                    {/* <Tooltip title="copy link">
+                        <CopyOutlined style={{ fontSize: 25, marginLeft: width / 1.03, position: 'absolute', marginTop: 5, cursor: 'pointer' }} onClick={copyLink}/>
+                    </Tooltip> */}
+
+                </View>
                 : null}
-            {/* {turn === myName && width <= 600 ?
-                <Input onChange={handleInputMobile} value={word} type="text" id="standard-multiline-flexible" style={{ width: '100%', color: "#888888" }} ref={textInputRef} editable={true} />
-                : null} */}
+
         </View>
 
     )
 }
-
-//<Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: currentData.length === 1 ? "70vw" : (75 / (currentData.length) + 10) + "vw", textAlign: 'center', width: width / 2, marginLeft: width / 4 }}>{currentData}</Text>

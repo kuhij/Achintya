@@ -1,15 +1,19 @@
 //imports
 import React, { useState, useEffect } from "react";
-import { Dimensions, View, } from "react-native";
+import { Dimensions, View, Text } from "react-native";
 
 import { notification } from 'antd';
 import TextPage from './text';
 
 
 import firebase from "firebase";
+import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
+import { Carousel } from 'react-responsive-carousel';
+
 import KeyboardArrowRightIcon from '@material-ui/icons/KeyboardArrowRight';
 import KeyboardArrowLeftIcon from '@material-ui/icons/KeyboardArrowLeft';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
+import VideoRoom from './myVideo'
 
 import { useParams, useHistory } from "react-router-dom";
 const { width, height } = Dimensions.get("window");
@@ -17,8 +21,6 @@ const { width, height } = Dimensions.get("window");
 const initialState = {
     value: "",
 };
-
-
 
 const guestId = "guest_" + Math.random().toString(36).slice(2)
 let counter = 0
@@ -136,6 +138,11 @@ export default function Spaces() {
                             currentSpace: snap.val().mySpace
                         })
 
+                        firebase.database().ref(`/Spaces/${snap.val().mySpace}/webRTC`).onDisconnect().update({
+                            messages: null,
+                            call: null
+                        })
+
                         firebase.database().ref(`/Spaces/${snap.val().mySpace}/`).onDisconnect().update({
                             online: false,
                             writer: name1,
@@ -145,9 +152,6 @@ export default function Spaces() {
 
                 })
 
-                listening();
-                writer()
-
             } else {
                 setName(guestId)
                 setLoggedIn(false)
@@ -155,12 +159,13 @@ export default function Spaces() {
             }
         });
 
-
+        listening();
+        writer()
     };
 
     useEffect(() => {
         const time = Date.now()
-        if (spaceId && loggedIn) {
+        if (spaceId) {
             firebase.database().ref(`/Spaces/${spaceId}/`).update({
                 count: firebase.database.ServerValue.increment(1),
             })
@@ -182,22 +187,15 @@ export default function Spaces() {
     }, []);
 
 
+
+
     //taking turn on KEY ENTER
     useEffect(() => {
 
         const listener = (event) => {
 
             if (event.code === "Enter") {
-                if (online) {
-                    setState((e) => ({
-                        ...e,
-                        value: "",
-                    }));
-                    firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: "" })
-                    firebase.database().ref(`/Spaces/${spaceId}/`).update({ writer: name })
-                } else {
-                    openNotification('bottomLeft', "user is offline.")
-                }
+                TakeTurn()
 
             }
         };
@@ -211,39 +209,66 @@ export default function Spaces() {
         };
     }, [name, turn])
 
+    const TakeTurn = () => {
+        if (online) {
+            setState((e) => ({
+                ...e,
+                value: "",
+            }));
+            firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: "" })
+            firebase.database().ref(`/Spaces/${spaceId}/`).update({ writer: name })
+        } else {
+            openNotification('bottomLeft', "user is offline.")
+        }
+    }
+
+    const forward = () => {
+        setShowVideo(true)
+        setShowText(false)
+    }
+
+    const backward = () => {
+        setShowVideo(false)
+        setShowText(true)
+    }
 
 
 
     return (
-        <View
+        <View style={{ height: "100%" }}>
 
-            style={{ height: "100%" }}
-        >
+            <View>
 
+                <View style={{ opacity: showText ? 1 : 0 }}>
+                    <TextPage currentData={state.value} turn={turn} myName={name} spaceId={spaceId} mySpace={mySpace} online={online} takeTurn={TakeTurn} />
+                </View>
 
-            {showText && loggedIn ?
-                <View>
-                    <TextPage currentData={state.value} turn={turn} myName={name} spaceId={spaceId} />
-                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.6, position: 'absolute', marginLeft: width - 45 }}>
-
-                        {/* <>
+                {/* {creator || turn === name ?
+                    <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
+                        {name !== "" ?
+                            <VideoRoom myName={name} spaceName={spaceId} creator={creator} />
+                            : null}
+                    </View>
+                    : null} */}
+                {/* <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.2, position: 'absolute', marginLeft: width - 45 }}>
+                    {showText && (creator || turn === name) ?
+                        <>
                             <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={forward}>
                                 <KeyboardArrowRightIcon style={{ margin: 'auto' }} />
                             </View>
                             <br />
                         </>
-
+                        : null}
+                    {showVideo ?
                         <>
                             <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={backward}>
                                 <KeyboardArrowLeftIcon style={{ margin: 'auto' }} />
                             </View>
                             <br />
-                        </> */}
-
-                    </View>
-                </View>
-                : <h3>Please login to join.</h3>}
-
+                        </>
+                        : null}
+                </View> */}
+            </View>
 
         </View>
 

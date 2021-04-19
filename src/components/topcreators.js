@@ -12,6 +12,10 @@ import AccountCircleIcon from '@material-ui/icons/AccountCircle';
 import AddToHomeScreenIcon from '@material-ui/icons/AddToHomeScreen';
 import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable";
 
+import KeyboardArrowRightIcon from '@material-ui/icons/KeyboardArrowRight';
+import KeyboardArrowLeftIcon from '@material-ui/icons/KeyboardArrowLeft';
+import VideoRoom from './myVideo'
+
 import { useParams, useHistory, Redirect } from "react-router-dom";
 import Login from "./login";
 const { width, height } = Dimensions.get("window");
@@ -39,6 +43,9 @@ export default function TopCreators(params) {
     const [loggedIn, setLoggedIn] = useState(false)
     const [mySpace, setMySpace] = useState("")
     const [currentS, setCurrentS] = useState("")
+    const [showText, setShowText] = useState(true)
+    const [showVideo, setShowVideo] = useState(false)
+    const [show, setShow] = useState(true)
 
     const [toSpace, setToSpace] = useState(false)
 
@@ -247,21 +254,13 @@ export default function TopCreators(params) {
         const listener = (event) => {
 
             if (event.code === "Enter") {
-                if (loggedIn) {
+                //if (loggedIn) {
 
-                    if (online) {
-                        setState((e) => ({
-                            ...e,
-                            value: "",
-                        }));
-                        firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: "" })
-                        firebase.database().ref(`/Spaces/${currentSpace}/`).update({ writer: name })
-                    } else {
-                        openNotification('bottomLeft', "user is offline.")
-                    }
-                } else {
-                    openNotification('bottomLeft', "please login to take turn.")
-                }
+                takeTurn()
+
+                // else {
+                //     openNotification('bottomLeft', "please login to take turn.")
+                // }
 
             }
         };
@@ -275,6 +274,19 @@ export default function TopCreators(params) {
         };
     }, [name, turn, currentSpace, loggedIn, online])
 
+    const takeTurn = () => {
+        if (online) {
+            setState((e) => ({
+                ...e,
+                value: "",
+            }));
+            firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: "" })
+            firebase.database().ref(`/Spaces/${currentSpace}/`).update({ writer: name })
+        } else {
+            openNotification('bottomLeft', "user is offline.")
+        }
+    }
+
 
     const handleInputMobile = (e) => {
         setWord(e.target.value)
@@ -286,9 +298,6 @@ export default function TopCreators(params) {
             let wrd = word
 
             firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: wrd })
-                .then(() => {
-                    textInputRef.current.focus();
-                })
 
             setWord("")
 
@@ -435,6 +444,16 @@ export default function TopCreators(params) {
         setToSpace(true)
     }
 
+    const forward = () => {
+        setShowVideo(true)
+        setShowText(false)
+    }
+
+    const backward = () => {
+        setShowVideo(false)
+        setShowText(true)
+    }
+
     const onSwiping = ({ dir }) => {
         if (dir === UP) {
             onUP()
@@ -451,110 +470,127 @@ export default function TopCreators(params) {
 
 
     return redirect ? <Login /> : toSpace ? <Redirect push to={`/space/${mySpace}`} /> : (
-        <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true}>
-            {array ?
-                <View >
+        <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true} style={{ height: height }}>
 
-                    <View
-                        style={{
-                            shadowOpacity: 4,
-                            width: width,
-                            overflow: 'hidden',
-                            height: height * 0.91,
-                            marginTop: '18px',
-                            zIndex: 99999,
+            <View style={{ opacity: showText ? 1 : 0, position: "absolute", height: height, width: width, overflow: 'hidden', background: "#fafafa" }}>
 
-                        }}
-                        onClick={turn === name && online ? autoFocus : null}
-                    >
-                        <View>
-                            <Text style={{ textAlign: 'center', fontFamily: 'cursive', marginBottom: 8 }}><b>{array[counter] ? array[counter] : array[array.length - 1]}:</b> {turn}</Text>
+                <View
+                    style={{
+                        width: width,
+                        overflow: 'hidden',
+                        height: height,
+                        marginTop: '18px',
+                        zIndex: 99999,
+                    }}
+                >
+                    <View style={{ width: width, height: height }} onClick={() => setShow(!show)}>
+                        {array.length > 0 ?
+                            <Text style={{ textAlign: 'center', fontFamily: 'Orelega One', marginBottom: 8 }}>
+                                <span style={{ fontSize: 19 }}>{array[counter] ? array[counter].charAt(0).toUpperCase() + array[counter].slice(1) : array[array.length - 1].charAt(0).toUpperCase() + array[array.length - 1].slice(1)}:
+                                </span>
+                                {" "}{turn}
 
-                            <View style={{ height: 1, background: 'black', marginBottom: 12 }}></View>
-                            <Text
-                                style={{
-                                    marginLeft: '10px',
-                                    fontSize: 15.5,
-                                    paddingRight: '18px',
-                                    overscrollBehaviorY: "contain",
-                                    scrollSnapType: "y proximity",
-                                    scrollSnapAlign: "end",
+                                <Tooltip title={online ? "online" : "offline"}>
+                                    <View style={{ marginLeft: 6, cursor: 'pointer', background: online ? "green" : "red", height: 9, width: 9, borderRadius: '50%' }}>
 
-                                }}
-                            >
-
-                                <View style={{ display: 'flex', flexFlow: 'row' }}>
-
-                                    <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / state.value.length + state.value.length) : (state.value.length === 2 ? height / 1.8 : (state.value.length) + height / (state.value.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{state.value}</Text>
-
-                                </View>
-
+                                    </View>
+                                </Tooltip>
                             </Text>
+                            : null}
+                        {!loggedIn ?
 
-                        </View>
+                            <Tooltip title="login">
+                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={goToLogin}>
+                                    <AccountCircleIcon />
+                                </View>
+                            </Tooltip>
 
-                        <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.5, position: 'absolute', marginLeft: width - 45 }}>
-                            {counter !== 0 ?
+                            :
 
-                                <>
-                                    <Tooltip title="previous">
-                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onDown}>
-                                            <KeyboardArrowUpIcon style={{ margin: 'auto' }} />
-                                        </View>
-                                    </Tooltip>
-                                    <br />
-                                </>
+                            <Tooltip title="my space">
+                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={goToSpace}>
+                                    <AddToHomeScreenIcon />
+                                </View>
+                            </Tooltip>
 
-                                : null}
-                            {counter < array.length ?
+                        }
 
-                                <>
-                                    <Tooltip title="next">
-                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={onUP}>
-                                            <KeyboardArrowDownIcon style={{ margin: 'auto' }} />
+                        <View style={{ height: 1, background: 'black', marginTop: 28, position: 'absolute', width: width }}></View>
 
-                                        </View>
-                                    </Tooltip>
-                                    <br />
-                                </>
-
-                                : null}
-                            {!loggedIn ?
-
-                                <>
-                                    <Tooltip title="login">
-                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={goToLogin}>
-                                            <AccountCircleIcon style={{ margin: 'auto' }} />
-                                        </View>
-                                    </Tooltip>
-                                    <br />
-                                </>
-
-                                :
-
-                                <>
-                                    <Tooltip title="my space">
-                                        <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={goToSpace}>
-                                            <AddToHomeScreenIcon style={{ margin: 'auto' }} />
-                                        </View>
-                                    </Tooltip>
-                                    <br />
-                                </>
-
-                            }
-                        </View>
+                        <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / state.value.length + state.value.length) : (state.value.length === 2 ? height / 1.8 : (state.value.length) + height / (state.value.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{state.value}</Text>
 
                     </View>
-                    {turn === name && online ?
-                        <View style={{ marginTop: height - 40, position: 'absolute', }}>
-                            <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: width, height: width < 600 ? 40 : 37 }} ref={textInputRef} editable={true} />
 
-                        </View>
+                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none' }} >
+                        {counter !== 0 ?
+
+                            <Tooltip title="previous">
+                                <View style={{ cursor: 'pointer', marginBottom: 10 }} onClick={onDown}>
+                                    <KeyboardArrowUpIcon />
+                                </View>
+                            </Tooltip>
+
+                            : null}
+                        {counter < array.length ?
+
+                            <Tooltip title="next">
+                                <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={onUP}>
+                                    <KeyboardArrowDownIcon />
+
+                                </View>
+                            </Tooltip>
+
+                            : null}
+
+                        {/* {showText && turn === name && online ?
+                            <>
+                                <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={forward}>
+                                    <KeyboardArrowRightIcon style={{ margin: 'auto' }} />
+                                </View>
+                                <br />
+                            </>
+                            : null}
+                        {showVideo ?
+                            <>
+                                <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={backward}>
+                                    <KeyboardArrowLeftIcon style={{ margin: 'auto' }} />
+                                </View>
+                                <br />
+                            </>
+                            : null} */}
+                    </View>
+
+                </View>
+
+                <View style={{ position: 'absolute', width: width, marginTop: height / 1.08, marginLeft: (width - (width / 1.1)) / 2.1, zIndex: 99999 }}>
+                    <Input
+                        onChange={handleInputMobile}
+                        placeholder="Type message.."
+                        value={word}
+                        type="text"
+                        style={{ width: width / 1.1, height: width < 600 ? 40 : 37, borderRadius: 30, paddingLeft: 20, paddingRight: width <= 600 ? '15%' : '7%' }}
+                        disabled={turn === name && online ? false : true}
+                    />
+
+                </View>
+                {turn !== name && online ?
+                    <Button
+                        style={{
+                            border: 'none', color: 'green', fontWeight: 600, zIndex: 99999, width: 30, position: 'absolute', marginTop: width <= 600 ? height / 1.08 : height / 1.08, marginLeft: width <= 600 ? width / 1.25 : width / 1.11, background: "transparent", height: width < 600 ? 40 : 37, fontSize: 11
+                        }}
+                        onClick={takeTurn}>
+                        Take
+                        </Button>
+                    : null}
+
+            </View>
+            {/* { turn === name && online ?
+                <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
+                    {name !== "" ?
+                        <VideoRoom myName={name} spaceName={currentSpace} />
                         : null}
-            :
-
-        </View>
-                : null}
+                </View>
+                : null} */}
         </Swipeable>
     )
 }

@@ -9,6 +9,7 @@ import { UserOutlined } from '@ant-design/icons';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import Spaces from "./spaces";
 import TopCreators from "./topcreators";
+import CommonSpace from './commonspace'
 
 const { width, height } = Dimensions.get("window");
 
@@ -123,7 +124,7 @@ export default function Login(params) {
 
 
     return redirect ? <Redirect push to={`/space/${spaceName}`} /> : showTop ? <TopCreators /> : (
-        <View style={{ height: height, width: width, overflow: 'hidden' }}>
+        <View style={{ height: height, width: width, overflow: 'hidden', background: "#fafafa" }}>
             <img
                 src="../favicon.png"
                 alt="logo"

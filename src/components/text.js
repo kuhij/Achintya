@@ -1,62 +1,45 @@
 //imports
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Dimensions, View, Text, TextInput } from "react-native";
 
 import { notification, Button, Input, Tooltip } from 'antd';
+import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
 import firebase from "firebase";
-import {
-    CopyOutlined
-} from '@ant-design/icons';
-
 
 
 import { useParams, useHistory } from "react-router-dom";
 const { width, height } = Dimensions.get("window");
 
-export default function TextPage({ currentData, turn, myName }) {
+export default function TextPage({ currentData, turn, myName, mySpace, online, takeTurn }) {
     const { spaceId } = useParams();
     const [word, setWord] = useState("")
+    const history = useHistory()
 
-    const textInputRef = useRef();
-
-    useEffect(() => {
-
-    }, [])
-
-
-    //sending letter by letter to rtdb.
-    const handleInput = async (event) => {
-        const current = event.nativeEvent.key;
-
-        let docRef;
-
-        docRef = firebase.database().ref(`/Spaces/${spaceId}/data`);
-
-        if (current === "Enter") {
-            textInputRef.current.focus();
-        }
-
-        //while deleting the letters, speaker name shouldn't be deleted
-        if (current === "ArrowRight" || current === "ArrowLeft" || current === "ArrowUp" || current === "ArrowDown" || current === "Escape") {
-            return null;
-        } else if (current === " ") {
-
-            let wrd = word + " "
-            // setSingle(wrd)
-
-            docRef.update({ word: wrd }).then(() => {
-                textInputRef.current.focus();
-            })
-
-            setWord("")
-        } else if (current === "Backspace") {
-            setWord(word.slice(0, -1))
-        } else {
-            setWord(word + current)
-
-        }
+    const openNotification = (placement, message) => {
+        notification.info({
+            message: `Alert`,
+            description:
+                `${message}`,
+            placement
+        });
     };
+
+
+    const onSignOut = () => {
+        firebase.auth().signOut().then(() => {
+            firebase.database().ref(`/Spaces/${mySpace}/`).update({
+                online: false,
+                count: firebase.database.ServerValue.increment(-1)
+            })
+            console.log('successfully signed out');
+            openNotification('bottomLeft', "Successfully logged out.")
+            history.push("/")
+        }).catch((error) => {
+            console.log(error);
+        });
+
+    }
 
     const handleInputMobile = (e) => {
         setWord(e.target.value)
@@ -72,9 +55,6 @@ export default function TextPage({ currentData, turn, myName }) {
                 time: time
             })
             firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: wrd })
-                .then(() => {
-                    textInputRef.current.focus();
-                })
 
             setWord("")
 
@@ -82,66 +62,65 @@ export default function TextPage({ currentData, turn, myName }) {
         }
     }
 
-    const autoFocus = () => {
-        textInputRef.current.focus()
-
+    const onclick = () => {
+        console.log('clicked');
     }
 
     return (
-        <View>
+        <View style={{ position: "absolute", height: height, width: width, overflow: 'hidden', background: "#fafafa" }}>
             <View
                 style={{
-                    shadowOpacity: 4,
                     width: width,
-                    //overflowY: "auto",
                     overflow: 'hidden',
-                    height: height * 0.91,
+                    height: height,
                     marginTop: '18px',
                     zIndex: 99999,
-
                 }}
-                onClick={turn === myName ? autoFocus : null}
             >
-                <View>
-                    <Text style={{ textAlign: 'center', fontWeight: 600, fontFamily: 'cursive' }}>{turn}</Text>
+                <View style={{ width: width, height: height }} >
+                    {turn ?
+                        <Text style={{ textAlign: 'center', fontFamily: 'Orelega One' }}>
+                            <span style={{ fontSize: 19 }}>
+                                {spaceId.charAt(0).toUpperCase() + spaceId.slice(1)}:
+                    </span>
+                            {" "}{turn}
+
+                            <Tooltip title={online ? "online" : "offline"}>
+                                <View style={{ marginLeft: 6, cursor: 'pointer', background: online ? "green" : "red", height: 9, width: 9, borderRadius: '50%' }}>
+
+                                </View>
+                            </Tooltip>
+                        </Text>
+                        : null}
+
+                    <Tooltip title="sign out">
+                        <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={onSignOut}>
+                            <ExitToAppIcon />
+                        </View>
+                    </Tooltip>
+
 
                     <View style={{ height: 1, background: 'black', marginTop: 28, position: 'absolute', width: width }}></View>
-                    <Text
-                        style={{
-                            marginLeft: '10px',
-                            margin: 20,
-                            fontSize: 15.5,
-                            paddingRight: '18px',
-                            overscrollBehaviorY: "contain",
-                            scrollSnapType: "y proximity",
-                            scrollSnapAlign: "end",
-                        }}
-                    >
 
-                        <View style={{ display: 'flex', flexFlow: 'row' }}>
-
-
-                            <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / currentData.length + currentData.length) : (currentData.length === 2 ? height / 1.8 : (currentData.length) + height / (currentData.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{currentData}</Text>
-
-
-                            {/* <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif' }}>{word}</Text> */}
-
-                        </View>
-
-                    </Text>
+                    <Text style={{ letterSpacing: 1, fontFamily: 'Ubuntu, sans-serif', fontSize: width < 600 ? (width / currentData.length + currentData.length) : (currentData.length === 2 ? height / 1.8 : (currentData.length) + height / (currentData.length / 2)), textAlign: 'center', width: width, marginTop: width <= 600 ? height / 4 : height / 10 }}>{currentData}</Text>
 
                 </View>
+            </View>
+
+
+
+            <View style={{ marginTop: height / 1.08, position: 'absolute', marginLeft: (width - (width / 1.1)) / 2.1, zIndex: 99999 }}>
+                <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" style={{ width: width / 1.1, height: width < 600 ? 40 : 37, borderRadius: 30, paddingLeft: 20, paddingRight: width <= 600 ? '15%' : '7%' }} disabled={turn === myName ? false : true} />
 
             </View>
-            {turn === myName ?
-
-                <View style={{ marginTop: height - 40, position: 'absolute', }}>
-                    <Input onChange={handleInputMobile} placeholder="Type message.." value={word} type="text" id="standard-multiline-flexible" style={{ width: width, height: width < 600 ? 40 : 37 }} ref={textInputRef} editable={true} />
-                    {/* <Tooltip title="copy link">
-                        <CopyOutlined style={{ fontSize: 25, marginLeft: width / 1.03, position: 'absolute', marginTop: 5, cursor: 'pointer' }} onClick={copyLink}/>
-                    </Tooltip> */}
-
-                </View>
+            {turn !== myName ?
+                <Button
+                    style={{
+                        border: 'none', color: 'green', fontWeight: 600, zIndex: 99999, width: 30, position: 'absolute', marginTop: width <= 600 ? height / 1.08 : height / 1.08, marginLeft: width <= 600 ? width / 1.25 : width / 1.11, background: "transparent", height: width < 600 ? 40 : 37, fontSize: 11
+                    }}
+                    onClick={takeTurn}>
+                    Take
+                        </Button>
                 : null}
 
         </View>

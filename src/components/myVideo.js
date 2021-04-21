@@ -4,6 +4,11 @@ import React, { useEffect, useState, useRef } from "react";
 import firebase from "firebase";
 import { notification } from 'antd';
 import RecordRTC from 'recordrtc';
+import {
+    CallEndRounded,
+} from "@material-ui/icons";
+import PhoneIcon from '@material-ui/icons/Phone';
+import { IconButton, Button as MButton } from "@material-ui/core";
 
 const height = window.innerHeight
 const width = window.innerWidth
@@ -15,17 +20,19 @@ var servers = { 'iceServers': [{ 'urls': 'stun:stun.services.mozilla.com' }, { '
 const myId = Math.floor(Math.random() * 1000000000);
 const senders = [];
 
-pc = new RTCPeerConnection(servers);
+//pc = new RTCPeerConnection(servers);
 
 let recorder;
 let friendStream = null
 let creator = false
-export default function VideoRoom({ spaceName, myName }) {
+export default function VideoRoom({ spaceName, myName, turn, takeTurn }) {
 
     const [open, setOpen] = useState(false);
     const [ofer1, setOfer] = useState(false)
 
     const [friends, setFriendVideo] = useState(false)
+    const [showMyVideo, setShowMyVideo] = useState(false)
+    const [pc, setpc] = useState(new RTCPeerConnection(servers))
 
     const myVideo = useRef()
     const friendsVideo = useRef()
@@ -54,7 +61,6 @@ export default function VideoRoom({ spaceName, myName }) {
             console.log("Sent All Ice")
             console.log(pc)
             message.ice = JSON.stringify(ice)
-            console.log(JSON.stringify(message));
             //firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).update({ sender: myName, message: JSON.stringify(message) });
         }
 
@@ -72,7 +78,7 @@ export default function VideoRoom({ spaceName, myName }) {
 
         friendsVideo.current.srcObject = e.streams[0];
         openNotification('bottomLeft', "ontrack stream called.")
-        setFriendVideo(true)
+
         friendStream = e.streams[0]
         console.log(e.streams, e.streams[0]);
         console.log("Adding other person's video to my screen. step 19/20.");
@@ -84,12 +90,15 @@ export default function VideoRoom({ spaceName, myName }) {
         switch (pc.iceConnectionState) {
 
             case "connected":
+                setShowMyVideo(true)
                 if (friendStream) {
                     friendsVideo.current.srcObject = friendStream;
                     console.log(friendStream, friendsVideo.current.srcObject);
                 }
 
-                console.log(friendStream, friendsVideo.current.srcObject);
+                firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).update({
+                    call: 'busy'
+                })
                 navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(stream => {
                     // console.log(stream)
 
@@ -106,18 +115,31 @@ export default function VideoRoom({ spaceName, myName }) {
                     recordVideo.startRecording();
                     recorder = recordVideo
                 }).then(() => {
-                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).on("value", function (snap) {
+                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/call`).on("value", async function (snap) {
                         console.log('start listening');
                         if (snap.val()) {
                             console.log(friendStream, friendsVideo.current.srcObject);
-                            if (snap.val().call === 'ended') {
+                            if (snap.val() === 'ended') {
                                 pc.close()
+                                await firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).off()
+                                await firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages/ice`).off()
+                                await firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages/call`).off()
+                                //pc = new RTCPeerConnection(servers);
+
                                 recorder.stopRecording(function () {
                                     let blob = recorder.getBlob();
                                     let blobList = [];
                                     console.log('turn of storage ', recorder.getBlob());
-                                    firebase.storage().ref().child(`one-one/random/${myName}`).put(blob).then(function (snapshot) {
+                                    firebase.storage().ref().child(`one-one/random/${myName}`).put(blob).then(function async(snapshot) {
                                         console.log('recording uploaded');
+
+                                        if (creator) {
+                                            firebase.database().ref(`/Spaces/${spaceName}/webRTC`).update({
+                                                messages: null,
+                                                call: null
+                                            })
+                                        }
+                                        setpc(new RTCPeerConnection(servers))
 
                                         const callerUrl = firebase.storage().ref().child(`one-one/random/${myName}`).getDownloadURL().then(async function (url) {
                                             var xhr = new XMLHttpRequest();
@@ -185,7 +207,7 @@ export default function VideoRoom({ spaceName, myName }) {
 
     }
 
-    useEffect(() => {
+    const turnSwitch = () => {
         firebase.database().ref(`/Users/${myName}/mySpace/`).once("value", function (snap) {
             if (snap.val()) {
                 if (snap.val() === spaceName) {
@@ -199,7 +221,13 @@ export default function VideoRoom({ spaceName, myName }) {
             }
 
         })
-    }, []);
+    }
+
+    useEffect(() => {
+        if (pc) {
+            turnSwitch()
+        }
+    }, [pc]);
 
     const callUserMedia = () => {
         console.log('login component loaded ', creator)
@@ -235,6 +263,18 @@ export default function VideoRoom({ spaceName, myName }) {
     const submit = () => {
 
         if (creator) {
+            firebase.database().ref(`/Spaces/${spaceName}/writer`).on("value", async function (snap) {
+                if (snap.val() === myName) {
+                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/call`).once("value", function (snap) {
+                        if (snap.val() === "busy") {
+                            firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).update({
+                                call: 'ended'
+                            })
+                        }
+                    })
+                }
+            })
+
             firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).on("value", function (snap) {
                 if (snap.val()) {
 
@@ -242,8 +282,6 @@ export default function VideoRoom({ spaceName, myName }) {
                     var offer = JSON.parse(convert.offer)
                     //var ice = JSON.parse(convert.ice)
 
-                    console.log(convert, ice, offer);
-                    console.log(pc.signalingState);
                     if (offer.type === "answer") {
 
                         console.log(pc, "if condition ", offer);
@@ -272,58 +310,72 @@ export default function VideoRoom({ spaceName, myName }) {
                 }
             })
 
+
+
         } else if (!creator) {
-            firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).on("value", function (snap) {
-                if (snap.val()) {
-
-                    var convert = JSON.parse(snap.val().message)
-                    var offer = JSON.parse(convert.offer)
-                    //var ice = JSON.parse(convert.ice)
-
-                    console.log(convert, ice, offer);
-                    console.log(pc.signalingState);
-                    if (offer.type === "offer") {
-
-                        console.log('else part ', offer);
-                        pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
-                            console.log('offer added');
-                            firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages/ice`).on("child_added", function (snap) {
-                                if (JSON.parse(snap.val())) {
-                                    var ice = JSON.parse(snap.val())
-                                    pc.addIceCandidate(new RTCIceCandidate(ice.ice)).then(_ => {
-                                        console.log("Added ice candidate to clien's peerconnection, offer added")
-                                    }).catch(e => {
-                                        console.log("Error: Failure during offer addIceCandidate() ", e);
-                                    });
-                                }
+            firebase.database().ref(`/Spaces/${spaceName}/writer`).on("value", async function (snap) {
+                if (snap.val() === myName) {
+                    await firebase.database().ref(`/Spaces/${spaceName}/webRTC/call`).once("value", function (snap) {
+                        if (snap.val() === "busy") {
+                            firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).update({
+                                call: 'ended'
                             })
+                        }
+                    })
+                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).on("value", function (snap) {
+                        if (snap.val()) {
 
-                            // for (let i = 0; i < ice.length; i++) {
-                            //     const element = ice[i];
-                            //     console.log(element);
-                            //     pc.addIceCandidate(new RTCIceCandidate(element)).then(_ => {
-                            //         console.log("Added ice candidate to clien's peerconnection which was sent by lawyer, step 18")
-                            //     }).catch(e => {
-                            //         console.log("Error: Failure during addIceCandidate() ", e);
-                            //     });
-                            // }
-                            pc.createAnswer()
-                                .then(answer => {
-                                    console.log('answer ', answer, pc);
-                                    //passVideo()
+                            var convert = JSON.parse(snap.val().message)
+                            var offer = JSON.parse(convert.offer)
+                            //var ice = JSON.parse(convert.ice)
 
-                                    pc.setLocalDescription(answer)
-                                        .then(() => {
-                                            message.offer = JSON.stringify(pc.localDescription)
-                                            firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).update({ sender: myName, message: JSON.stringify(message) });
+                            if (offer.type === "offer") {
+
+                                console.log('else part ', offer);
+                                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
+                                    console.log('offer added');
+                                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages/ice`).on("child_added", function (snap) {
+                                        if (JSON.parse(snap.val())) {
+                                            var ice = JSON.parse(snap.val())
+                                            pc.addIceCandidate(new RTCIceCandidate(ice.ice)).then(_ => {
+                                                console.log("Added ice candidate to clien's peerconnection, offer added")
+                                            }).catch(e => {
+                                                console.log("Error: Failure during offer addIceCandidate() ", e);
+                                            });
+                                        }
+                                    })
+
+                                    // for (let i = 0; i < ice.length; i++) {
+                                    //     const element = ice[i];
+                                    //     console.log(element);
+                                    //     pc.addIceCandidate(new RTCIceCandidate(element)).then(_ => {
+                                    //         console.log("Added ice candidate to clien's peerconnection which was sent by lawyer, step 18")
+                                    //     }).catch(e => {
+                                    //         console.log("Error: Failure during addIceCandidate() ", e);
+                                    //     });
+                                    // }
+                                    pc.createAnswer()
+                                        .then(answer => {
+                                            console.log('answer ', answer, pc);
+                                            //passVideo()
+
+                                            pc.setLocalDescription(answer)
+                                                .then(() => {
+                                                    message.offer = JSON.stringify(pc.localDescription)
+                                                    firebase.database().ref(`/Spaces/${spaceName}/webRTC/messages`).update({ sender: myName, message: JSON.stringify(message) });
+                                                })
+                                        }).then(() => {
+                                            console.log(pc, 'answer created');
                                         })
-                                }).then(() => {
-                                    console.log(pc, 'answer created');
-                                })
-                        })
-                    }
+                                }).catch(e => {
+                                    console.log("Error: Failure during set offer remote desc ");
+                                });
+                            }
+                        }
+                    })
                 }
             })
+
         }
 
     }
@@ -336,54 +388,56 @@ export default function VideoRoom({ spaceName, myName }) {
 
 
     return (
-        <div
-            style={{
-                height: height,
-                width: "100%",
-                width: width,
-                minHeight: "100%",
-                minWidth: "100%",
-                position: "relative",
-                overflow: 'hidden'
-            }}
-        >
-            <div>
-                <button onClick={callEnded}>End</button>
-                <div
-                    style={{
-                        position: "absolute",
-                        background: "transparent",
-                        zIndex: 1000,
-                        width: width,
+        <div style={{ backgroundColor: "#212121" }}>
 
-                    }}
-                >
-
-                </div>
-
+            <div className="inner-container" style={{ height: height }}>
+                {/* <button onClick={callEnded}>End</button> */}
                 <video style={{
-                    transform: "rotateY(180deg)",
-                    width: width,
-                    height: height / 2,
-                    background: "black",
+                    transform: "scaleX(-1)",
+                    height: height / 4,
+                    position: "absolute",
+                    bottom: 10,
+                    right: 10,
+                    zIndex: 1,
                 }}
-                    loop ref={myVideo} autoPlay muted playsInline>
+                    loop ref={myVideo}
+                    autoPlay
+                    muted
+                    playsInline
+                >
                     myVideo
                     </video>
 
-                <video style={{
-                    transform: "rotateY(180deg)",
-                    width: width,
-                    height: height / 2,
-                    background: "black",
+                <div className="video-overlay">
 
-                }}
-                    loop ref={friendsVideo} autoPlay playsInline>
+                    {turn !== myName ?
+                        <IconButton
+                            onClick={takeTurn}
+                            style={{ backgroundColor: "#4ca628", marginLeft: width / 2 - 60 }}
+                        >
+                            <PhoneIcon style={{ fontSize: 35, color: "#fff" }} />
+                        </IconButton>
+                        : null}
+                </div>
+                <video
+                    style={{
+                        objectFit: "cover",
+                        width: "100vw",
+                        height: "100vh",
+                        background: "black",
+
+                        top: 0,
+                        left: 0,
+                        display: 'block'
+                    }}
+                    loop
+                    ref={friendsVideo}
+                    autoPlay
+                    playsInline
+                >
                     friendVideo
                     </video>
-
             </div>
         </div>
-
     )
 }

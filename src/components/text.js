@@ -7,11 +7,10 @@ import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 
 import firebase from "firebase";
 
-
 import { useParams, useHistory } from "react-router-dom";
 const { width, height } = Dimensions.get("window");
 
-export default function TextPage({ currentData, turn, myName, mySpace, online, takeTurn }) {
+export default function TextPage({ currentData, turn, myName, mySpace, online, takeTurn, signout }) {
     const { spaceId } = useParams();
     const [word, setWord] = useState("")
     const history = useHistory()
@@ -24,22 +23,6 @@ export default function TextPage({ currentData, turn, myName, mySpace, online, t
             placement
         });
     };
-
-
-    const onSignOut = () => {
-        firebase.auth().signOut().then(() => {
-            firebase.database().ref(`/Spaces/${mySpace}/`).update({
-                online: false,
-                count: firebase.database.ServerValue.increment(-1)
-            })
-            console.log('successfully signed out');
-            openNotification('bottomLeft', "Successfully logged out.")
-            history.push("/")
-        }).catch((error) => {
-            console.log(error);
-        });
-
-    }
 
     const handleInputMobile = (e) => {
         setWord(e.target.value)
@@ -62,9 +45,6 @@ export default function TextPage({ currentData, turn, myName, mySpace, online, t
         }
     }
 
-    const onclick = () => {
-        console.log('clicked');
-    }
 
     return (
         <View style={{ position: "absolute", height: height, width: width, overflow: 'hidden', background: "#fafafa" }}>
@@ -93,12 +73,13 @@ export default function TextPage({ currentData, turn, myName, mySpace, online, t
                         </Text>
                         : null}
 
-                    <Tooltip title="sign out">
-                        <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={onSignOut}>
-                            <ExitToAppIcon />
-                        </View>
-                    </Tooltip>
-
+                    {mySpace ?
+                        <Tooltip title="sign out">
+                            <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={signout}>
+                                <ExitToAppIcon />
+                            </View>
+                        </Tooltip>
+                        : null}
 
                     <View style={{ height: 1, background: 'black', marginTop: 28, position: 'absolute', width: width }}></View>
 

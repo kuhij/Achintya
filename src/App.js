@@ -5,6 +5,7 @@ import Spaces from './components/spaces'
 import CommonSpace from './components/commonspace'
 import CommonHome from './components/commonhome'
 import TopCreators from "./components/topcreators";
+import './App.css'
 
 import firebase from "./config";
 import 'antd/dist/antd.css';

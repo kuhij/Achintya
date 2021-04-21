@@ -24,9 +24,9 @@ const initialState = {
     value: "",
 };
 
-let array = []
-let values = []
-let counter = 0
+// let array = []
+// let values = []
+//let counter = 0
 const guestId = "guest_" + Math.random().toString(36).slice(2)
 export default function TopCreators(params) {
     const { spaceId } = useParams();
@@ -46,10 +46,15 @@ export default function TopCreators(params) {
     const [showText, setShowText] = useState(true)
     const [showVideo, setShowVideo] = useState(false)
     const [show, setShow] = useState(true)
+    const [array, setArray] = useState([])
+    const [values, setValues] = useState([])
+    const [counter, setCounter] = useState(-1)
+    const [hasData, setHasData] = useState(null)
 
     const [toSpace, setToSpace] = useState(false)
 
     const textInputRef = useRef();
+
 
     const openNotification = (placement, message) => {
         notification.info({
@@ -115,25 +120,19 @@ export default function TopCreators(params) {
 
                 })
 
-                console.log('current user ', user);
                 setLoggedIn(true)
-                firebase.database().ref(`/Spaces/${creatorId}/`).update({
-                    count: firebase.database.ServerValue.increment(1),
-                })
+
             } else {
                 setLoggedIn(false)
                 setName(guestId)
                 console.log('not logged in');
-                firebase.database().ref(`/Spaces/${creatorId}/`).update({
-                    count: firebase.database.ServerValue.increment(1),
-                })
+
             }
         });
 
-
-        // firebase.database().ref(`/Spaces/${creatorId}/`).update({
-        //     count: firebase.database.ServerValue.increment(1),
-        // })
+        firebase.database().ref(`/Spaces/${creatorId}/`).update({
+            count: firebase.database.ServerValue.increment(1),
+        })
 
         firebase.database().ref(`/Spaces/${creatorId}/`).onDisconnect().update({
             count: firebase.database.ServerValue.increment(-1)
@@ -145,9 +144,6 @@ export default function TopCreators(params) {
 
     useEffect(() => {
         if (currentSpace) {
-            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().update({
-                count: firebase.database.ServerValue.increment(-1)
-            });
 
             firebase.database().ref(`/Spaces/${currentSpace}/online`).on("value", function (snap) {
                 setOnline(snap.val())
@@ -168,50 +164,87 @@ export default function TopCreators(params) {
         keyPressFunction(docRef);
     };
 
+    useEffect(() => {
+        if (array.length > 0 && values.length > 0 && counter <= array.length - 1 && counter > -1) {
+            const id = array[counter]
+            console.log(values);
+            setCurrentSpace(id)
+            const number = values[counter].count
+
+            setLimit(number)
+            fetchUpdate(id)
+            console.log(array, values);
+        }
+        if (array.length > 1) {
+            if (array[counter + 1]) {
+                setHasData(true)
+            }
+        }
+    }, [counter])
 
     useEffect(() => {
         let linksRef = firebase.database().ref('/Spaces/');
         linksRef.orderByChild('count').endAt(limit).limitToLast(1).once("value", function (snapshot) {
             if (snapshot.val()) {
 
-                array = Object.keys(snapshot.val())
-                values = Object.values(snapshot.val())
+                const keys = Object.keys(snapshot.val())
+                let val = Object.values(snapshot.val())
+                for (let i = 0; i < Object.keys(snapshot.val()).length; i++) {
+                    const element = Object.keys(snapshot.val())[i];
+                    const element1 = Object.values(snapshot.val())[i];
+                    setArray(oldArray => [...oldArray, element]);
+                    setValues(oldValue => [...oldValue, element1]);
 
-                const id = array[0]
-
-                setCurrentSpace(id)
-                const number = values[0].count
-
-                setLimit(number)
-                fetchUpdate(id)
-                console.log(array, values);
-                linksRef.orderByChild("count").equalTo(number).once("value", function (snap) {
+                }
+                //const number = values[counter].count
+                setHasData(true)
+                setCounter(counter + 1)
+                linksRef.orderByChild("count").equalTo(val[0].count).once("value", function (snap) {
+                    console.log("run");
                     if (snap.val()) {
 
                         const keys = Object.keys(snap.val())
-                        array.push(Object.keys(snap.val())[0])
-                        values.push(Object.values(snap.val())[0])
-                        console.log(snap.val(), keys, number);
+                        // array.push(Object.keys(snap.val())[0])
+                        let val = Object.values(snap.val())
+
+                        for (let j = 0; j < keys.length; j++) {
+                            const element = Object.keys(snap.val())[j];
+                            const element1 = Object.values(snap.val())[j];
+                            setArray(oldArray => [...oldArray, element]);
+                            setValues(oldValue => [...oldValue, element1]);
+                        }
+
+                        console.log(snap.val(), keys, values[counter].count);
                         if (keys.length > 1) {
                             snap.forEach((doc) => {
                                 const index = array.indexOf(doc.key)
                                 if (index === -1) {
-                                    array.push(doc.key)
-                                    values.push(doc.val())
+
+                                    setArray(oldArray => [...oldArray, doc.key]);
+                                    setValues(oldValue => [...oldValue, doc.val()]);
                                 }
                                 console.log(array);
                             })
                         }
                         else {
-                            linksRef.orderByChild('count').endAt(values[values.length - 1].count - 1).limitToLast(1).once("value", function (snapshot) {
+                            linksRef.orderByChild('count').endAt(val[val.length - 1].count - 1).limitToLast(1).once("value", function (snapshot) {
                                 if (snapshot.val()) {
-                                    array.push(Object.keys(snapshot.val())[0])
-                                    values.push(Object.values(snapshot.val())[0])
-                                    const number1 = Object.values(snapshot.val())[0].count
+                                    // array.push(Object.keys(snapshot.val())[0])
+                                    // values.push(Object.values(snapshot.val())[0])
+                                    // const number1 = Object.values(snapshot.val())[0].count
+                                    let val = Object.values(snapshot.val())
+
+
+                                    for (let i = 0; i < Object.keys(snapshot.val()).length; i++) {
+                                        const element = Object.keys(snapshot.val())[i];
+                                        const element1 = Object.values(snapshot.val())[i];
+                                        setArray(oldArray => [...oldArray, element]);
+                                        setValues(oldValue => [...oldValue, element1]);
+                                    }
 
                                     console.log(array, snapshot.val(), values)
 
-                                    linksRef.orderByChild("count").equalTo(number1).once("value", function (snap) {
+                                    linksRef.orderByChild("count").equalTo(val[0].count).once("value", function (snap) {
                                         if (snap.val()) {
 
                                             const keys = Object.keys(snap.val())
@@ -220,8 +253,10 @@ export default function TopCreators(params) {
                                                 snap.forEach((doc) => {
                                                     const index = array.indexOf(doc.key)
                                                     if (index === -1) {
-                                                        array.push(doc.key)
-                                                        values.push(doc.val())
+                                                        // array.push(doc.key)
+                                                        // values.push(doc.val())
+                                                        setArray(oldArray => [...oldArray, doc.key]);
+                                                        setValues(oldValue => [...oldValue, doc.val()]);
                                                     }
                                                     console.log(array);
                                                     //array = keys
@@ -296,140 +331,155 @@ export default function TopCreators(params) {
         // console.log(e.target.value, space);
         if (space == " ") {
             let wrd = word
-
             firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: wrd })
 
             setWord("")
-
             console.log('spacebar detected');
         }
     }
 
 
-    const autoFocus = () => {
-        textInputRef.current.focus()
-
-    }
-
-
     const nextCard = async () => {
-        counter = counter + 1
 
         let linksRef = firebase.database().ref('/Spaces/');
-        console.log(currentSpace, array, counter);
+        // console.log(currentSpace, array, counter);
         if (array.length - counter <= 2) {
-
+            console.log('entry run');
             await linksRef.orderByChild('count').endAt(values[values.length - 1].count - 1).limitToLast(1).once("value", async function (snapshot) {
                 console.log(snapshot.val(), array.length, counter);
                 if (snapshot.val()) {
+                    console.log('query run');
+                    // array.push(Object.keys(snapshot.val())[0])
+                    // values.push(Object.values(snapshot.val())[0])
+                    let val = Object.values(snapshot.val())
+                    for (let i = 0; i < Object.keys(snapshot.val()).length; i++) {
+                        const element = Object.keys(snapshot.val())[i];
+                        const element1 = Object.values(snapshot.val())[i];
+                        setArray(oldArray => [...oldArray, element]);
+                        setValues(oldValue => [...oldValue, element1]);
 
-                    array.push(Object.keys(snapshot.val())[0])
-                    values.push(Object.values(snapshot.val())[0])
+                    }
 
-                    const id = array[0]
-                    const number = Object.values(snapshot.val())[0].count
+                    // const id = array[0]
+                    // const number = Object.values(snapshot.val())[0].count
 
-                    linksRef.orderByChild("count").equalTo(number).once("value", function (snap) {
+                    linksRef.orderByChild("count").equalTo(val[0].count).once("value", function (snap) {
                         if (snap.val()) {
 
                             const keys = Object.keys(snap.val())
                             console.log(snap.val(), keys);
-                            if (keys.length > 1) {
-                                snap.forEach((doc) => {
-                                    const index = array.indexOf(doc.key)
-                                    if (index === -1) {
-                                        array.push(doc.key)
-                                        values.push(doc.val())
-                                    }
-                                    console.log(array);
-                                    //array = keys
-                                })
-                            } else {
-                                console.log(false);
-                            }
+
+                            snap.forEach((doc) => {
+                                const index = array.indexOf(doc.key)
+                                if (index === -1) {
+                                    setArray(oldArray => [...oldArray, doc.key]);
+                                    setValues(oldValue => [...oldValue, doc.val()]);
+                                }
+                                console.log(array);
+                                //array = keys
+                            })
+
                         }
                     })
 
+                    // if (array[counter + 1]) {
+
+                    // }
+
                     //nextData(id)
+                } else {
+                    setHasData(false)
                 }
             })
         }
+        // if (array[counter + 1]) {
+        //     setHasData(true)
+        // }
+        setCounter(counter + 1)
+        // if (counter >= array.length) {
+        //     openNotification('bottomLeft', "no more creations.")
+        // } else {
+        //     setState((e) => ({
+        //         ...e,
+        //         value: "",
+        //     }));
+        //     firebase.database().ref(`/Spaces/${array[counter]}/`).once("value", function (snapshot) {
+        //         if (snapshot.val()) {
+        //             setLimit(snapshot.val().count)
+        //         }
 
-        if (counter >= array.length) {
-            openNotification('bottomLeft', "no more creations.")
-        } else {
-            setState((e) => ({
-                ...e,
-                value: "",
-            }));
-            firebase.database().ref(`/Spaces/${array[counter]}/`).once("value", function (snapshot) {
-                if (snapshot.val()) {
-                    setLimit(snapshot.val().count)
-                }
+        //     })
 
-            })
+        //     setCurrentSpace(array[counter])
+        //     fetchUpdate(array[counter])
 
-            setCurrentSpace(array[counter])
-            fetchUpdate(array[counter])
-
-            // nextData(array[counter])
-        }
+        //     nextData(array[counter])
+        // }
 
     }
 
-    const onDown = () => {
+    const onDown = async () => {
+        setHasData(true)
+        setState((e) => ({
+            ...e,
+            value: "",
+        }));
+        firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
+        await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+            count: firebase.database.ServerValue.increment(-1)
+        })
 
-        counter = counter - 1
-        if (array[counter]) {
-            setState((e) => ({
-                ...e,
-                value: "",
-            }));
-            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-                count: firebase.database.ServerValue.increment(-1)
-            })
+        setCurrentSpace(array[counter])
 
-            setCurrentSpace(array[counter])
-            fetchUpdate(array[counter])
-        } else {
-            counter = counter + 1
-        }
+        setCounter(counter - 1)
         console.log(currentSpace, array, counter);
         //setRedirect(true)
 
     }
 
-    const goToLogin = () => {
+    const goToLogin = async () => {
+        console.log(currentSpace);
         if (currentSpace) {
             firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+            await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
                 count: firebase.database.ServerValue.increment(-1)
             })
             firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
         }
 
         setRedirect(true)
     }
 
-    const onUP = () => {
+    const onUP = async () => {
+        console.log(currentSpace);
 
-
+        setState((e) => ({
+            ...e,
+            value: "",
+        }));
         firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-        if (currentSpace) {
 
+        await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+            count: firebase.database.ServerValue.increment(-1)
+        })
+        firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
 
-            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-                count: firebase.database.ServerValue.increment(-1)
-            })
-            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
-        }
-        setCurrentSpace("")
         nextCard()
+
     }
 
     const goToSpace = () => {
@@ -439,7 +489,10 @@ export default function TopCreators(params) {
                 count: firebase.database.ServerValue.increment(-1)
             })
             firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
+            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
         }
         setToSpace(true)
     }
@@ -456,13 +509,17 @@ export default function TopCreators(params) {
 
     const onSwiping = ({ dir }) => {
         if (dir === UP) {
-            onUP()
+            console.log(counter, array.length);
+            if (hasData) {
+                onUP()
+            }
 
         }
 
         if (dir === DOWN) {
-
-            onDown()
+            if (counter !== 0) {
+                onDown()
+            }
 
         }
 
@@ -471,7 +528,21 @@ export default function TopCreators(params) {
 
     return redirect ? <Login /> : toSpace ? <Redirect push to={`/space/${mySpace}`} /> : (
         <Swipeable onSwiped={(eventData) => onSwiping(eventData)} preventDefaultTouchmoveEvent={true} trackMouse={true} style={{ height: height }}>
+            <img
+                src="../favicon.png"
+                alt="logo"
+                style={{ height: 25, width: 25, margin: 10, position: 'absolute', zIndex: 9, marginTop: 14 }}
+            />
+            <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none', zIndex: 9 }} >
+                {showVideo ?
+                    <>
+                        <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={backward}>
+                            <KeyboardArrowLeftIcon style={{ color: 'white' }} />
+                        </View>
 
+                    </>
+                    : null}
+            </View>
             <View style={{ opacity: showText ? 1 : 0, position: "absolute", height: height, width: width, overflow: 'hidden', background: "#fafafa" }}>
 
                 <View
@@ -521,7 +592,8 @@ export default function TopCreators(params) {
 
                     </View>
 
-                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none' }} >
+
+                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none', zIndex: 9 }} >
                         {counter !== 0 ?
 
                             <Tooltip title="previous">
@@ -531,7 +603,7 @@ export default function TopCreators(params) {
                             </Tooltip>
 
                             : null}
-                        {counter < array.length ?
+                        {hasData ?
 
                             <Tooltip title="next">
                                 <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={onUP}>
@@ -542,24 +614,16 @@ export default function TopCreators(params) {
 
                             : null}
 
-                        {/* {showText && turn === name && online ?
+                        {showText ?
                             <>
-                                <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={forward}>
-                                    <KeyboardArrowRightIcon style={{ margin: 'auto' }} />
+                                <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={forward}>
+                                    <KeyboardArrowRightIcon />
                                 </View>
                                 <br />
                             </>
                             : null}
-                        {showVideo ?
-                            <>
-                                <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={backward}>
-                                    <KeyboardArrowLeftIcon style={{ margin: 'auto' }} />
-                                </View>
-                                <br />
-                            </>
-                            : null} */}
-                    </View>
 
+                    </View>
                 </View>
 
                 <View style={{ position: 'absolute', width: width, marginTop: height / 1.08, marginLeft: (width - (width / 1.1)) / 2.1, zIndex: 99999 }}>
@@ -584,13 +648,13 @@ export default function TopCreators(params) {
                     : null}
 
             </View>
-            {/* { turn === name && online ?
-                <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
-                    {name !== "" ?
-                        <VideoRoom myName={name} spaceName={currentSpace} />
-                        : null}
-                </View>
-                : null} */}
+
+            <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
+                {name !== "" ?
+                    <VideoRoom myName={name} spaceName={currentSpace} takeTurn={takeTurn} turn={turn} />
+                    : null}
+            </View>
+
         </Swipeable>
     )
 }

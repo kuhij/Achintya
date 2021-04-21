@@ -128,7 +128,7 @@ export default function Login(params) {
             <img
                 src="../favicon.png"
                 alt="logo"
-                style={{ height: 25, width: 25, margin: 10 }}
+                style={{ height: 25, width: 25, margin: 10, marginTop: 14 }}
 
             />
 
@@ -166,13 +166,13 @@ export default function Login(params) {
 
 
                     </View >
-                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 1.3, position: 'absolute', marginLeft: width - 45 }}>
+                    <View style={{ marginRight: width <= 600 ? null : '2%', marginTop: width <= 600 ? height / 1.3 : height / 2.3, position: 'absolute', marginLeft: width <= 600 ? (width / 2) : width - 45 }}>
                         {!showTop ?
 
                             <>
                                 <Tooltip title="top-creators">
-                                    <View style={{ backgroundColor: 'white', height: 28, width: 28, borderRadius: '50%', cursor: 'pointer' }} onClick={() => setShowTop(true)}>
-                                        <KeyboardArrowDownIcon style={{ margin: 'auto' }} />
+                                    <View style={{ cursor: 'pointer' }} onClick={() => setShowTop(true)}>
+                                        <KeyboardArrowDownIcon />
 
                                     </View>
                                 </Tooltip>

@@ -14,7 +14,9 @@ import { useSwipeable, Swipeable, LEFT, RIGHT, UP, DOWN } from "react-swipeable"
 
 import KeyboardArrowRightIcon from '@material-ui/icons/KeyboardArrowRight';
 import KeyboardArrowLeftIcon from '@material-ui/icons/KeyboardArrowLeft';
-import VideoRoom from './myVideo'
+import VideoRoom from './topCratorStream'
+import YoutubeLiveView from "./creatorView";
+import swal from 'sweetalert';
 
 import { useParams, useHistory, Redirect } from "react-router-dom";
 import Login from "./login";
@@ -50,6 +52,9 @@ export default function TopCreators(params) {
     const [values, setValues] = useState([])
     const [counter, setCounter] = useState(-1)
     const [hasData, setHasData] = useState(null)
+    const [showYoutube, setShowYoutube] = useState(false)
+    const [videoId, setVideoId] = useState("")
+    const [myVideoId, setMyVideoId] = useState("")
 
     const [toSpace, setToSpace] = useState(false)
 
@@ -82,11 +87,13 @@ export default function TopCreators(params) {
         ref.on("value", async function (snapshot) {
 
             if (snapshot.val()) {
-
-                if (snapshot.val() === null) {
+                if (snapshot.val().being) {
+                    setVideoId(snapshot.val().being)
+                }
+                if (snapshot.val().word === null) {
                     return null;
                 } else {
-                    const current = snapshot.val();
+                    const current = snapshot.val().word;
                     console.log(current);
 
                     setState((e) => ({
@@ -160,7 +167,7 @@ export default function TopCreators(params) {
 
 
     const listening = (creatorId) => {
-        let docRef = firebase.database().ref(`/Spaces/${creatorId}/data/word`);
+        let docRef = firebase.database().ref(`/Spaces/${creatorId}/data/`);
         keyPressFunction(docRef);
     };
 
@@ -311,12 +318,42 @@ export default function TopCreators(params) {
 
     const takeTurn = () => {
         if (online) {
-            setState((e) => ({
-                ...e,
-                value: "",
-            }));
-            firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: "" })
-            firebase.database().ref(`/Spaces/${currentSpace}/`).update({ writer: name })
+            if (myVideoId) {
+                setState((e) => ({
+                    ...e,
+                    value: "",
+                }));
+                firebase.database().ref(`/Spaces/${currentSpace}/data`).update({ word: "", being: myVideoId })
+                firebase.database().ref(`/Spaces/${currentSpace}/`).update({ writer: name })
+            } else {
+                swal({
+                    text: 'Enter video id',
+                    content: "input",
+                    button: {
+                        text: "Proceed",
+                        closeModal: true,
+                    },
+                }).then((value) => {
+                    if (value) {
+                        setMyVideoId(value)
+                        firebase.database().ref(`/Spaces/${currentSpace}/data`).update({
+                            being: value,
+                        }).then(() => {
+                            setState((e) => ({
+                                ...e,
+                                value: "",
+                            }));
+                            firebase.database().ref(`/Spaces/${currentSpace}/`).update({ writer: name })
+                        })
+                    } else {
+                        swal({
+                            title: "Please enter videoId to continue!",
+                            icon: "info",
+                            button: "okay",
+                        });
+                    }
+                })
+            }
         } else {
             openNotification('bottomLeft', "user is offline.")
         }
@@ -418,22 +455,26 @@ export default function TopCreators(params) {
 
     }
 
+    const switchingOff = async () => {
+        firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
+        await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
+            count: firebase.database.ServerValue.increment(-1)
+        })
+        firebase.database().ref(`/Spaces/${currentSpace}/data/`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
+        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
+    }
+
     const onDown = async () => {
         setHasData(true)
         setState((e) => ({
             ...e,
             value: "",
         }));
-        firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/writer`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-        await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-            count: firebase.database.ServerValue.increment(-1)
-        })
+        setVideoId("")
+        switchingOff()
 
         setCurrentSpace(array[counter])
 
@@ -446,15 +487,7 @@ export default function TopCreators(params) {
     const goToLogin = async () => {
         console.log(currentSpace);
         if (currentSpace) {
-            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-            await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-                count: firebase.database.ServerValue.increment(-1)
-            })
-            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
+            switchingOff()
         }
 
         setRedirect(true)
@@ -467,16 +500,8 @@ export default function TopCreators(params) {
             ...e,
             value: "",
         }));
-        firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-
-        await firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-            count: firebase.database.ServerValue.increment(-1)
-        })
-        firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
-        firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
+        setVideoId("")
+        await switchingOff()
 
         nextCard()
 
@@ -484,15 +509,7 @@ export default function TopCreators(params) {
 
     const goToSpace = () => {
         if (currentSpace) {
-            firebase.database().ref(`/Spaces/${currentSpace}/`).onDisconnect().cancel()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).update({
-                count: firebase.database.ServerValue.increment(-1)
-            })
-            firebase.database().ref(`/Spaces/${currentSpace}/data/word`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/call`).off()
-            firebase.database().ref(`/Spaces/${currentSpace}/webRTC/messages/ice`).off()
+            switchingOff()
         }
         setToSpace(true)
     }
@@ -500,11 +517,23 @@ export default function TopCreators(params) {
     const forward = () => {
         setShowVideo(true)
         setShowText(false)
+        setShowYoutube(false)
     }
 
     const backward = () => {
         setShowVideo(false)
         setShowText(true)
+        setShowYoutube(false)
+    }
+
+    const onYouTube = () => {
+        setShowVideo(false)
+        setShowYoutube(true)
+    }
+
+    const onVideo = () => {
+        setShowVideo(true)
+        setShowYoutube(false)
     }
 
     const onSwiping = ({ dir }) => {
@@ -533,13 +562,27 @@ export default function TopCreators(params) {
                 alt="logo"
                 style={{ height: 25, width: 25, margin: 10, position: 'absolute', zIndex: 9, marginTop: 14 }}
             />
-            <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none', zIndex: 9 }} >
+            <View style={{ marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.3, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none', zIndex: 9 }} >
                 {showVideo ?
-                    <>
-                        <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={backward}>
-                            <KeyboardArrowLeftIcon style={{ color: 'white' }} />
-                        </View>
+                    <View style={{ cursor: 'pointer', }} onClick={backward}>
+                        <KeyboardArrowLeftIcon style={{ color: 'white' }} />
+                    </View>
 
+                    : <View style={{ cursor: 'pointer', display: showYoutube ? "none" : 'block' }} onClick={forward}>
+                        <KeyboardArrowRightIcon />
+                    </View>}
+                <br />
+                {videoId ?
+                    <>
+                        {showYoutube ?
+                            <View style={{ cursor: 'pointer' }} onClick={onVideo}>
+                                <KeyboardArrowLeftIcon style={{ color: 'black' }} />
+                            </View>
+                            :
+                            <View style={{ cursor: 'pointer' }} onClick={onYouTube}>
+                                <KeyboardArrowRightIcon style={{ color: 'white' }} />
+                            </View>
+                        }
                     </>
                     : null}
             </View>
@@ -571,7 +614,7 @@ export default function TopCreators(params) {
                         {!loggedIn ?
 
                             <Tooltip title="login">
-                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={goToLogin}>
+                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.03, cursor: 'pointer', position: 'absolute' }} onClick={goToLogin}>
                                     <AccountCircleIcon />
                                 </View>
                             </Tooltip>
@@ -579,7 +622,7 @@ export default function TopCreators(params) {
                             :
 
                             <Tooltip title="my space">
-                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.05, cursor: 'pointer', position: 'absolute' }} onClick={goToSpace}>
+                                <View style={{ marginLeft: width <= 600 ? width / 1.05 - 23 : width / 1.03, cursor: 'pointer', position: 'absolute' }} onClick={goToSpace}>
                                     <AddToHomeScreenIcon />
                                 </View>
                             </Tooltip>
@@ -592,47 +635,15 @@ export default function TopCreators(params) {
 
                     </View>
 
-
-                    <View style={{ display: 'flex', flexFlow: 'column', alignItems: 'flex-end', marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.5, position: 'absolute', marginLeft: width - 45, display: show ? 'block' : 'none', zIndex: 9 }} >
-                        {counter !== 0 ?
-
-                            <Tooltip title="previous">
-                                <View style={{ cursor: 'pointer', marginBottom: 10 }} onClick={onDown}>
-                                    <KeyboardArrowUpIcon />
-                                </View>
-                            </Tooltip>
-
-                            : null}
-                        {hasData ?
-
-                            <Tooltip title="next">
-                                <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={onUP}>
-                                    <KeyboardArrowDownIcon />
-
-                                </View>
-                            </Tooltip>
-
-                            : null}
-
-                        {showText ?
-                            <>
-                                <View style={{ cursor: 'pointer', marginTop: 10 }} onClick={forward}>
-                                    <KeyboardArrowRightIcon />
-                                </View>
-                                <br />
-                            </>
-                            : null}
-
-                    </View>
                 </View>
 
-                <View style={{ position: 'absolute', width: width, marginTop: height / 1.08, marginLeft: (width - (width / 1.1)) / 2.1, zIndex: 99999 }}>
+                <View style={{ position: 'absolute', width: width, marginTop: height / 1.08, marginLeft: width <= 600 ? null : (width - (width / 1.1)) / 2.1, zIndex: 99999 }}>
                     <Input
                         onChange={handleInputMobile}
                         placeholder="Type message.."
                         value={word}
                         type="text"
-                        style={{ width: width / 1.1, height: width < 600 ? 40 : 37, borderRadius: 30, paddingLeft: 20, paddingRight: width <= 600 ? '15%' : '7%' }}
+                        style={{ width: width <= 600 ? width : width / 1.1, height: width < 600 ? 40 : 37, borderRadius: 30, paddingLeft: 20, paddingRight: width <= 600 ? '20%' : '7%' }}
                         disabled={turn === name && online ? false : true}
                     />
 
@@ -640,19 +651,47 @@ export default function TopCreators(params) {
                 {turn !== name && online ?
                     <Button
                         style={{
-                            border: 'none', color: 'green', fontWeight: 600, zIndex: 99999, width: 30, position: 'absolute', marginTop: width <= 600 ? height / 1.08 : height / 1.08, marginLeft: width <= 600 ? width / 1.25 : width / 1.11, background: "transparent", height: width < 600 ? 40 : 37, fontSize: 11
+                            border: 'none', color: 'green', fontWeight: 600, zIndex: 99999, width: 30, position: 'absolute', marginTop: width <= 600 ? height / 1.08 : height / 1.08, marginLeft: width <= 600 ? width / 1.50 : width / 1.16, background: "transparent", height: width < 600 ? 40 : 37, fontSize: 11
                         }}
                         onClick={takeTurn}>
                         Take
                         </Button>
                     : null}
 
+                <View style={{ display: 'flex', flexFlow: 'row', alignItems: 'flex-end', marginTop: width <= 600 ? height / 1.08 : height / 1.08, position: 'absolute', marginLeft: width <= 600 ? width / 1.25 : width / 1.11, height: width < 600 ? 33 : 31, zIndex: 999999 }} >
+                    {counter !== 0 ?
+
+                        <Tooltip title="previous">
+                            <View style={{ cursor: 'pointer' }} onClick={onDown} disabled>
+                                <KeyboardArrowUpIcon disabled />
+                            </View>
+                        </Tooltip>
+
+                        : null}
+                    {hasData ?
+
+                        <Tooltip title="next">
+                            <View style={{ cursor: 'pointer' }} onClick={onUP}>
+                                <KeyboardArrowDownIcon />
+
+                            </View>
+                        </Tooltip>
+
+                        : null}
+
+                </View>
+
             </View>
 
             <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
                 {name !== "" ?
-                    <VideoRoom myName={name} spaceName={currentSpace} takeTurn={takeTurn} turn={turn} />
+                    <VideoRoom myName={name} spaceName={currentSpace} takeTurn={takeTurn} turn={turn} online={online} creator={false} />
                     : null}
+            </View>
+            <View style={{ opacity: showYoutube ? 1 : 0, position: 'absolute', zIndex: showYoutube ? null : '-1' }}>
+
+                <YoutubeLiveView myName={name} spaceName={currentSpace} turn={turn} takeTurn={takeTurn} online={online} videoId={videoId} />
+
             </View>
 
         </Swipeable>

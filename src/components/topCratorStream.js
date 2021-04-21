@@ -24,8 +24,7 @@ const senders = [];
 
 let recorder;
 let friendStream = null
-let creator = false
-export default function VideoRoom({ spaceName, myName, turn, takeTurn, online }) {
+export default function VideoRoom({ spaceName, myName, turn, takeTurn, online, creator }) {
 
     const [open, setOpen] = useState(false);
     const [ofer1, setOfer] = useState(false)
@@ -67,9 +66,9 @@ export default function VideoRoom({ spaceName, myName, turn, takeTurn, online })
     }
 
     // pc.onaddstream = function (event) {
-    //     friendsVideo.current.srcObject = event.stream;
     //     openNotification('bottomLeft', "onaddstream stream called.")
-
+    //     setFriendVideo(true)
+    //     friendsVideo.current.srcObject = event.stream;
     //     console.log(event.stream);
 
     // };//setFriendVideo(true)
@@ -82,6 +81,8 @@ export default function VideoRoom({ spaceName, myName, turn, takeTurn, online })
         friendStream = e.streams[0]
         console.log(e.streams, e.streams[0]);
         console.log("Adding other person's video to my screen. step 19/20.");
+
+
         firebase.database().ref(`/Spaces/${spaceName}/webRTC/`).update({
             call: 'busy'
         })
@@ -130,6 +131,7 @@ export default function VideoRoom({ spaceName, myName, turn, takeTurn, online })
                                     setpc(new RTCPeerConnection(servers))
                                 }
 
+
                                 const callerUrl = firebase.storage().ref().child(`one-one/random/${myName}`).getDownloadURL().then(async function (url) {
                                     var xhr = new XMLHttpRequest();
                                     xhr.responseType = 'blob';
@@ -167,7 +169,6 @@ export default function VideoRoom({ spaceName, myName, turn, takeTurn, online })
                 //     friendsVideo.current.srcObject = friendStream;
                 //     console.log(friendStream, friendsVideo.current.srcObject);
                 // }
-
 
                 //switch off listener
 
@@ -212,26 +213,14 @@ export default function VideoRoom({ spaceName, myName, turn, takeTurn, online })
     }
 
     const turnSwitch = () => {
-        firebase.database().ref(`/Users/${myName}/mySpace/`).once("value", function (snap) {
-            if (snap.val()) {
-                if (snap.val() === spaceName) {
-                    creator = true
-                    callUserMedia()
-                } else {
-                    callUserMedia()
-                }
-            } else {
-                callUserMedia()
-            }
-
-        })
+        callUserMedia()
     }
 
     useEffect(() => {
         if (pc) {
             turnSwitch()
         }
-    }, [pc]);
+    }, [pc, spaceName]);
 
     const callUserMedia = () => {
         console.log('login component loaded ', creator)

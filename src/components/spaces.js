@@ -8,6 +8,7 @@ import TextPage from './text';
 
 import firebase from "firebase";
 import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
+import swal from 'sweetalert';
 
 import VideocamIcon from '@material-ui/icons/Videocam';
 
@@ -15,9 +16,9 @@ import KeyboardArrowRightIcon from '@material-ui/icons/KeyboardArrowRight';
 import KeyboardArrowLeftIcon from '@material-ui/icons/KeyboardArrowLeft';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 import VideoRoom from './myVideo'
-import TopCreators from './topcreators'
 
 import { useParams, useHistory } from "react-router-dom";
+import YoutubeLiveView from "./creatorView";
 const { width, height } = Dimensions.get("window");
 
 const initialState = {
@@ -43,9 +44,8 @@ export default function Spaces() {
     const [showYoutube, setShowYoutube] = useState(false)
     const [creator, setCreator] = useState(false)
     const [haveTurn, setHaveTurn] = useState(false)
-    const [showCall, setShowCall] = useState(false)
     const [videoId, setVideoId] = useState("")
-    const [redirect, setRedirect] = useState(false)
+    const [myVideoId, setMyVideoId] = useState("")
 
     const openNotification = (placement, message) => {
         notification.info({
@@ -55,6 +55,40 @@ export default function Spaces() {
             placement
         });
     };
+
+    useEffect(() => {
+        if (creator) {
+            swal({
+                text: 'Enter video id',
+                content: "input",
+                button: {
+                    text: "Proceed",
+                    closeModal: true,
+                },
+            }).then((value) => {
+                if (value) {
+                    firebase.database().ref(`/Spaces/${spaceId}/data`).update({
+                        being: value,
+                    }).then(() => {
+                        setMyVideoId(value)
+                    })
+                } else {
+                    backToHome()
+                }
+            })
+        }
+    }, [creator])
+
+    useEffect(() => {
+
+        firebase.database().ref(`/Spaces/${spaceId}/data/being`).on("value", function (snap) {
+            if (snap.val()) {
+                setVideoId(snap.val())
+            }
+
+        })
+
+    }, [myVideoId, videoId, spaceId])
 
 
     const writer = () => {
@@ -122,7 +156,8 @@ export default function Spaces() {
                         })
 
                         firebase.database().ref(`/Spaces/${snap.val().mySpace}/data`).update({
-                            word: ""
+                            word: "",
+                            being: ""
                         })
 
                         firebase.database().ref(`/Spaces/${spaceId}/webRTC/`).update({
@@ -134,25 +169,27 @@ export default function Spaces() {
                         //     entry: time
                         // })
 
-                        firebase.database().ref(`/Users/${name1}/`).onDisconnect().update({
-                            currentSpace: snap.val().mySpace
-                        })
 
+                    } else {
                         firebase.database().ref(`/Users/${name1}/`).update({
-                            currentSpace: snap.val().mySpace
+                            currentSpace: spaceId
                         })
-
-                        firebase.database().ref(`/Spaces/${snap.val().mySpace}/webRTC`).onDisconnect().update({
-                            messages: null,
-                            call: null
-                        })
-
-                        firebase.database().ref(`/Spaces/${snap.val().mySpace}/`).onDisconnect().update({
-                            online: false,
-                            writer: name1,
-                            time: firebase.database.ServerValue.TIMESTAMP,
-                        });
                     }
+
+                    firebase.database().ref(`/Spaces/${snap.val().mySpace}/`).onDisconnect().update({
+                        online: false,
+                        writer: name1,
+                        time: firebase.database.ServerValue.TIMESTAMP,
+                    });
+
+                    firebase.database().ref(`/Users/${name1}/`).onDisconnect().update({
+                        currentSpace: snap.val().mySpace
+                    })
+
+                    firebase.database().ref(`/Spaces/${snap.val().mySpace}/webRTC`).onDisconnect().update({
+                        messages: null,
+                        call: null
+                    })
 
                 })
 
@@ -238,12 +275,45 @@ export default function Spaces() {
 
     const TakeTurn = () => {
         if (online) {
-            setState((e) => ({
-                ...e,
-                value: "",
-            }));
-            firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: "" })
-            firebase.database().ref(`/Spaces/${spaceId}/`).update({ writer: name })
+
+            if (myVideoId) {
+                setState((e) => ({
+                    ...e,
+                    value: "",
+                }));
+                firebase.database().ref(`/Spaces/${spaceId}/`).update({ writer: name })
+
+                firebase.database().ref(`/Spaces/${spaceId}/data`).update({ word: "", being: myVideoId })
+
+            } else {
+                swal({
+                    text: 'Enter video id',
+                    content: "input",
+                    button: {
+                        text: "Proceed",
+                        closeModal: true,
+                    },
+                }).then((value) => {
+                    if (value) {
+                        setMyVideoId(value)
+                        firebase.database().ref(`/Spaces/${spaceId}/data`).update({
+                            being: value,
+                        }).then(() => {
+                            setState((e) => ({
+                                ...e,
+                                value: "",
+                            }));
+                            firebase.database().ref(`/Spaces/${spaceId}/`).update({ writer: name })
+                        })
+                    } else {
+                        swal({
+                            title: "Please enter videoId to continue!",
+                            icon: "info",
+                            button: "okay",
+                        });
+                    }
+                })
+            }
         } else {
             openNotification('bottomLeft', "user is offline.")
         }
@@ -252,14 +322,25 @@ export default function Spaces() {
     const forward = () => {
         setShowVideo(true)
         setShowText(false)
+        setShowYoutube(false)
     }
 
     const backward = () => {
         setShowVideo(false)
         setShowText(true)
+        setShowYoutube(false)
+
     }
 
+    const onYouTube = () => {
+        setShowVideo(false)
+        setShowYoutube(true)
+    }
 
+    const onVideo = () => {
+        setShowVideo(true)
+        setShowYoutube(false)
+    }
 
     return (
         <View style={{ height: "100%" }}>
@@ -283,35 +364,43 @@ export default function Spaces() {
                         signout={onSignOut}
                     />
                 </View>
-                {/* <View style={{ cursor: 'pointer', marginTop: width <= 600 ? height / 1.08 : height / 1.08, marginLeft: width <= 600 ? width / 1.25 : width / 1.10, width: 30 }} onClick={forward}>
-                    <VideocamIcon />
-                </View> */}
 
 
                 <View style={{ opacity: showVideo ? 1 : 0, position: 'absolute', zIndex: showVideo ? null : '-1' }}>
                     {name !== "" ?
-                        <VideoRoom myName={name} spaceName={spaceId} turn={turn} takeTurn={TakeTurn} />
+                        <VideoRoom myName={name} spaceName={spaceId} turn={turn} takeTurn={TakeTurn} online={online} />
                         : null}
+                </View>
+
+                <View style={{ opacity: showYoutube ? 1 : 0, position: 'absolute', zIndex: showYoutube ? null : '-1' }}>
+
+                    <YoutubeLiveView myName={name} spaceName={spaceId} turn={turn} takeTurn={TakeTurn} online={online} videoId={videoId} myVideoId={myVideoId} />
+
                 </View>
 
                 <View style={{ marginRight: width <= 600 ? '4%' : '2%', marginTop: height / 2.3, position: 'absolute', marginLeft: width - 45 }}>
 
-                    <View style={{ cursor: 'pointer' }} onClick={forward}>
-                        <KeyboardArrowRightIcon />
-                        {/* <VideocamIcon /> */}
-                    </View>
-
                     {showVideo ?
-                        <>
-                            <View style={{ cursor: 'pointer', marginBottom: 10 }} onClick={backward}>
-                                <KeyboardArrowLeftIcon style={{ color: 'white' }} />
-                            </View>
-                            {/* <View style={{ cursor: 'pointer', marginTop: 10 }} >
-                                <KeyboardArrowRightIcon style={{ color: 'white' }} />
-                                
-                            </View> */}
-                        </>
-                        : null}
+                        <View style={{ cursor: 'pointer' }} onClick={backward}>
+                            <KeyboardArrowLeftIcon style={{ color: 'white' }} />
+                        </View>
+                        : <View style={{ cursor: 'pointer', display: showYoutube ? "none" : 'block' }} onClick={forward}>
+                            <KeyboardArrowRightIcon />
+                            {/* <VideocamIcon /> */}
+                        </View>}
+                    <br />
+
+                    {showYoutube ?
+
+                        <View style={{ cursor: 'pointer' }} onClick={onVideo}>
+                            <KeyboardArrowLeftIcon style={{ color: 'black' }} />
+                        </View>
+                        :
+                        <View style={{ cursor: 'pointer' }} onClick={onYouTube}>
+                            <KeyboardArrowRightIcon style={{ color: 'white' }} />
+                        </View>
+                    }
+
                 </View>
             </View>
 
